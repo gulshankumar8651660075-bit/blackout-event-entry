@@ -63,28 +63,28 @@ const AppContent = () => {
   }
 
   return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-[#060911] flex flex-col">
-        <Navbar onSyncTrigger={handleGlobalSync} isSyncing={isSyncing} />
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-6 pb-12">
-          <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/scanner" element={<GateScannerPage />} />
-            <Route path="/tickets" element={<TicketsPage />} />
-            <Route path="/conflicts" element={<ConflictCenterPage />} />
-            <Route path="/demo" element={<DemoGuidePage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
-      </div>
-    </BrowserRouter>
+    <div className="min-h-screen bg-[#060911] flex flex-col">
+      <Navbar onSyncTrigger={handleGlobalSync} isSyncing={isSyncing} />
+      <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-6 pb-12">
+        <Routes>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/scanner" element={<GateScannerPage />} />
+          <Route path="/tickets" element={<TicketsPage />} />
+          <Route path="/conflicts" element={<ConflictCenterPage />} />
+          <Route path="/demo" element={<DemoGuidePage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+    </div>
   );
 };
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </BrowserRouter>
   );
 }

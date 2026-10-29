@@ -4,12 +4,23 @@ import { api } from '../utils/api';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('blackout_token'));
+  const [user, setUser] = useState(() => {
+    const cached = localStorage.getItem('blackout_cached_user');
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [token, setToken] = useState(() => localStorage.getItem('blackout_token'));
   
   // Gate scanner device credentials
-  const [activeGate, setActiveGate] = useState(localStorage.getItem('blackout_gate') || 'Gate A');
+  const [activeGate, setActiveGate] = useState(() => localStorage.getItem('blackout_gate') || 'Gate A');
   const [deviceId, setDeviceId] = useState(() => {
     let id = localStorage.getItem('blackout_device_id');
     if (!id) {
@@ -19,31 +30,26 @@ export const AuthProvider = ({ children }) => {
     return id;
   });
 
+  // Verify online token if present, but NEVER log out user if offline
   useEffect(() => {
-    const fetchUser = async () => {
-      if (!token) {
-        setLoading(false);
-        return;
-      }
+    if (!token) return;
+
+    let isMounted = true;
+    const verifyToken = async () => {
       try {
         const res = await api.getMe();
-        setUser(res.user);
-      } catch (err) {
-        console.warn('Auth validation failed, falling back or offline:', err);
-        // If offline and cached user exists in localStorage, maintain session!
-        const cachedUser = localStorage.getItem('blackout_cached_user');
-        if (cachedUser) {
-          try {
-            setUser(JSON.parse(cachedUser));
-          } catch (e) {
-            setUser(null);
-          }
+        if (isMounted && res.user) {
+          setUser(res.user);
+          localStorage.setItem('blackout_cached_user', JSON.stringify(res.user));
         }
-      } finally {
-        setLoading(false);
+      } catch (err) {
+        // Offline or connection error: keep cached user session intact!
+        console.warn('Network auth verify skipped (Offline Resilience Mode Active)');
       }
     };
-    fetchUser();
+
+    verifyToken();
+    return () => { isMounted = false; };
   }, [token]);
 
   const login = (userData, authToken) => {
@@ -58,6 +64,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('blackout_cached_user');
     setToken(null);
     setUser(null);
+    // Complete clean reset to root
+    window.location.href = '/';
   };
 
   const updateGate = (newGate) => {

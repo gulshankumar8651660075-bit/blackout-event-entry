@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import confetti from 'canvas-confetti';
-import { Camera, CameraOff, Keyboard, Volume2, VolumeX, CheckCircle, AlertTriangle, XCircle, RefreshCw } from 'lucide-react';
+import { Camera, CameraOff, Keyboard, Volume2, VolumeX, CheckCircle, AlertTriangle, XCircle, RefreshCw, Zap, Sparkles } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
-export const QRScannerView = ({ onScanCode, isOfflineReady = false, activeGate = 'Gate A' }) => {
+export const QRScannerView = ({ onScanCode, isOfflineReady = true, activeGate = 'Gate A' }) => {
   const [cameraActive, setCameraActive] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -29,11 +29,31 @@ export const QRScannerView = ({ onScanCode, isOfflineReady = false, activeGate =
   const startCamera = async () => {
     try {
       setLastScanResult(null);
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.stop();
+          await scannerRef.current.clear();
+        } catch (e) {}
+      }
+
       const scanner = new Html5Qrcode(scannerId);
       scannerRef.current = scanner;
 
+      // Smart camera selection: check available cameras or fallback to user camera
+      let cameraConfig = { facingMode: 'user' };
+      try {
+        const cameras = await Html5Qrcode.getCameras();
+        if (cameras && cameras.length > 0) {
+          // If back camera found on phone, use it; otherwise use default available camera (laptop webcam)
+          const backCam = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('rear'));
+          cameraConfig = backCam ? backCam.id : cameras[0].id;
+        }
+      } catch (camErr) {
+        console.warn('Camera enumeration fallback:', camErr);
+      }
+
       await scanner.start(
-        { facingMode: 'environment' },
+        cameraConfig,
         {
           fps: 10,
           qrbox: { width: 250, height: 250 },
@@ -41,15 +61,26 @@ export const QRScannerView = ({ onScanCode, isOfflineReady = false, activeGate =
         async (decodedText) => {
           handleScanTrigger(decodedText);
         },
-        (errorMessage) => {
-          // scanner scanning frames - no error action
-        }
+        () => {}
       );
       setCameraActive(true);
     } catch (err) {
-      console.error('Failed to start camera:', err);
-      alert('Could not start camera: ' + err.message + '. Please use manual ticket entry below.');
-      setCameraActive(false);
+      console.warn('Primary camera start failed, retrying with basic constraints:', err);
+      try {
+        const fallbackScanner = new Html5Qrcode(scannerId);
+        scannerRef.current = fallbackScanner;
+        await fallbackScanner.start(
+          { facingMode: 'user' },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          async (decodedText) => { handleScanTrigger(decodedText); },
+          () => {}
+        );
+        setCameraActive(true);
+      } catch (err2) {
+        console.error('All camera attempts failed:', err2);
+        alert('Webcam / Camera not accessible: ' + err2.message + '\n\nDon\'t worry! You can use the Quick Test Scan buttons below to test without a camera.');
+        setCameraActive(false);
+      }
     }
   };
 
@@ -88,7 +119,7 @@ export const QRScannerView = ({ onScanCode, isOfflineReady = false, activeGate =
       // Cooldown before next scan
       setTimeout(() => {
         setIsProcessing(false);
-      }, 1500);
+      }, 1000);
     }
   };
 
@@ -134,7 +165,7 @@ export const QRScannerView = ({ onScanCode, isOfflineReady = false, activeGate =
               <div>
                 <h4 className="text-base font-bold text-white">Camera Standby</h4>
                 <p className="text-xs text-slate-400 max-w-xs mt-1">
-                  Click below to activate live webcam scanning, or use the manual ticket code entry below.
+                  Click below to activate live webcam scanning, or use the 1-Click test buttons below.
                 </p>
               </div>
               <button
@@ -163,18 +194,57 @@ export const QRScannerView = ({ onScanCode, isOfflineReady = false, activeGate =
         )}
       </div>
 
+      {/* 1-Click Quick Scan Test Feeders (Slide 12: Instant testing without webcam) */}
+      <div className="glass-panel p-3.5 rounded-2xl border border-slate-800 space-y-2">
+        <span className="text-[11px] font-mono uppercase text-amber-400 font-bold flex items-center gap-1.5">
+          <Zap className="w-3.5 h-3.5" />
+          <span>1-Click Test Scans (No Camera Needed)</span>
+        </span>
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => handleScanTrigger('TKT-1042')}
+            disabled={isProcessing}
+            className="p-2 rounded-xl bg-slate-900 hover:bg-emerald-950/60 border border-slate-700 hover:border-emerald-500/50 text-left transition"
+          >
+            <div className="text-[11px] font-mono font-bold text-emerald-400">TKT-1042</div>
+            <div className="text-[10px] text-slate-400 truncate">Rohan (VIP)</div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleScanTrigger('TKT-1043')}
+            disabled={isProcessing}
+            className="p-2 rounded-xl bg-slate-900 hover:bg-blue-950/60 border border-slate-700 hover:border-blue-500/50 text-left transition"
+          >
+            <div className="text-[11px] font-mono font-bold text-blue-400">TKT-1043</div>
+            <div className="text-[10px] text-slate-400 truncate">Priya (Gen)</div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleScanTrigger('TKT-1044')}
+            disabled={isProcessing}
+            className="p-2 rounded-xl bg-slate-900 hover:bg-purple-950/60 border border-slate-700 hover:border-purple-500/50 text-left transition"
+          >
+            <div className="text-[11px] font-mono font-bold text-purple-400">TKT-1044</div>
+            <div className="text-[10px] text-slate-400 truncate">Aarav (VIP)</div>
+          </button>
+        </div>
+      </div>
+
       {/* Manual Code Input Form (Slide 05: Enter ticket ID manually) */}
       <form onSubmit={handleManualSubmit} className="glass-panel p-4 rounded-2xl border border-slate-800 space-y-2">
         <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
           <Keyboard className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Manual Ticket Check-in (or Barcode Gun):</span>
+          <span>Manual Ticket Check-in (Type e.g. 1042 or TKT-1042):</span>
         </label>
         <div className="flex gap-2">
           <input
             type="text"
             value={manualCode}
             onChange={(e) => setManualCode(e.target.value)}
-            placeholder="e.g. TKT-1042 or paste QR string"
+            placeholder="Type 1042 or TKT-1042"
             className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-mono text-white focus:outline-none focus:border-emerald-500"
           />
           <button
@@ -182,7 +252,7 @@ export const QRScannerView = ({ onScanCode, isOfflineReady = false, activeGate =
             disabled={!manualCode.trim() || isProcessing}
             className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold transition flex items-center gap-1.5"
           >
-            {isProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span>Verify</span>}
+            {isProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span>Verify &amp; Enter</span>}
           </button>
         </div>
       </form>
@@ -235,7 +305,7 @@ export const QRScannerView = ({ onScanCode, isOfflineReady = false, activeGate =
                 </div>
               ) : (
                 <p className="text-xs text-rose-300 mt-1">
-                  Ticket code was not found in device's downloaded offline cache.
+                  Ticket code was not found in device cache.
                 </p>
               )}
 
