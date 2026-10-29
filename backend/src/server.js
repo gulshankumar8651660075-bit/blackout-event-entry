@@ -97,7 +97,8 @@ app.use((err, req, res, next) => {
   res.status(500).json({
     success: false,
     message: 'Internal server error occurred.',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    error: err.message || String(err),
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
 });
 
