@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
-import { Radio, Lock, Mail, User, ShieldCheck, ArrowRight, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { Radio, Lock, Mail, User, ArrowRight, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 
 export const LoginPage = () => {
   const { login } = useAuth();
@@ -43,21 +43,9 @@ export const LoginPage = () => {
     }
   };
 
-  const handleFillCredentials = (fillRole) => {
-    setError('');
-    setIsRegister(false);
-    if (fillRole === 'organizer') {
-      setEmail('organizer@blackout.io');
-      setPassword('password123');
-    } else {
-      setEmail('volunteer@blackout.io');
-      setPassword('password123');
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-[#060911] relative overflow-hidden">
-      {/* Background ambient lighting */}
+      {/* Background ambient glow */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
       <div className="w-full max-w-md relative z-10 glass-panel p-8 rounded-3xl border border-slate-800 shadow-2xl space-y-6">
@@ -73,41 +61,23 @@ export const LoginPage = () => {
             BLACKOUT
           </h2>
           <p className="text-xs text-slate-400">
-            Offline-First Event Entry &amp; Gate Verification
+            Secure Offline-First Event Entry &amp; Verification
           </p>
         </div>
 
-        {/* Quick Fill Credentials Helper (Fills the inputs for easy testing) */}
-        <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1.5">
-            <KeyRound className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Fill Credentials Shortcut (Optional)</span>
-          </span>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleFillCredentials('organizer')}
-              className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700/80 text-slate-300 hover:text-white border border-slate-700 text-[11px] font-medium transition text-center"
-            >
-              Fill Organiser
-            </button>
-            <button
-              type="button"
-              onClick={() => handleFillCredentials('volunteer')}
-              className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700/80 text-slate-300 hover:text-white border border-slate-700 text-[11px] font-medium transition text-center"
-            >
-              Fill Volunteer
-            </button>
-          </div>
+        {/* Security Badge */}
+        <div className="flex items-center justify-center gap-1.5 text-[11px] font-mono text-emerald-400 bg-emerald-950/40 border border-emerald-500/20 py-1.5 px-3 rounded-xl">
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>bcrypt Protected • JWT Access Control</span>
         </div>
 
         {error && (
-          <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/40 text-xs text-rose-300 font-medium">
+          <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-500/40 text-xs text-rose-300 font-medium">
             {error}
           </div>
         )}
 
-        {/* Real Form */}
+        {/* Pure Authenticated Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {isRegister && (
             <div>
@@ -119,7 +89,7 @@ export const LoginPage = () => {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Your Name"
+                  placeholder="e.g. Gulshan Kumar"
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -165,7 +135,7 @@ export const LoginPage = () => {
 
           {isRegister && (
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Select Role</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Account Role</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
@@ -182,19 +152,19 @@ export const LoginPage = () => {
             disabled={loading}
             className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-950 transition flex items-center justify-center gap-2"
           >
-            <span>{loading ? 'Authenticating...' : isRegister ? 'Create Account' : 'Sign In'}</span>
+            <span>{loading ? 'Authenticating...' : isRegister ? 'Create Secure Account' : 'Sign In'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
         {/* Switch Register/Login */}
-        <div className="text-center text-xs text-slate-400 pt-2 border-t border-slate-800">
+        <div className="text-center text-xs text-slate-400 pt-3 border-t border-slate-800">
           <button
             type="button"
             onClick={() => { setIsRegister(!isRegister); setError(''); }}
             className="text-emerald-400 hover:underline font-semibold"
           >
-            {isRegister ? '← Already have an account? Sign In' : 'Create new account / Register →'}
+            {isRegister ? '← Already have an account? Sign In' : "Don't have an account? Register →"}
           </button>
         </div>
 
