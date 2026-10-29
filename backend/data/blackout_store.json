@@ -1,0 +1,184 @@
+{
+  "users": [
+    {
+      "id": "d042b8ee-c113-424c-85f0-0dcbb6ccc114",
+      "name": "Gulshan (Lead Organiser)",
+      "email": "organizer@blackout.io",
+      "password": "$2a$10$0YFfkgS9LrCjEvYoTeVABOc3213Ppx6WysI1b5hPLu/wwipxEsMvm",
+      "role": "organizer",
+      "createdAt": "2026-10-29T14:37:56.282Z"
+    },
+    {
+      "id": "c55adda2-aae8-4536-b50e-8d6c463e1a7a",
+      "name": "Alex (Gate Volunteer)",
+      "email": "volunteer@blackout.io",
+      "password": "$2a$10$7PTyCDRFFcnM6c5A.OYVqe2wpDrKR04CBGSgu7caWJ.LC2WWxVjni",
+      "role": "volunteer",
+      "createdAt": "2026-10-29T14:37:56.382Z"
+    }
+  ],
+  "events": [
+    {
+      "id": "demo-event-blackout-2026",
+      "title": "Electric Horizon Music Festival 2026",
+      "description": "Official 3-Day Music & Arts Festival - Blackout Offline Entry Trial",
+      "date": "2026-10-29",
+      "venue": "Grand Arena, North Complex",
+      "organizerId": "org-1",
+      "gates": [
+        "Gate A - North VIP",
+        "Gate B - South General",
+        "Gate C - Fast Track"
+      ],
+      "status": "active",
+      "createdAt": "2026-10-29T14:37:12.053Z"
+    }
+  ],
+  "tickets": [
+    {
+      "id": "tkt-id-TKT-1042",
+      "ticketNumber": "TKT-1042",
+      "eventId": "demo-event-blackout-2026",
+      "attendeeName": "Rohan Sharma",
+      "attendeeEmail": "rohan@example.com",
+      "tier": "VIP",
+      "qrPayload": "{\"tkt\":\"TKT-1042\",\"eid\":\"demo-event-blackout-2026\",\"att\":\"Rohan Sharma\",\"tok\":\"demo-token-TKT-1042\"}",
+      "status": "conflict",
+      "firstCheckIn": {
+        "gateId": "Gate A",
+        "scannedAt": "2026-10-29T14:37:12.060Z",
+        "volunteerName": "Gate Volunteer",
+        "deviceId": "DEV-A"
+      },
+      "checkInCount": 2,
+      "createdAt": "2026-10-29T14:37:12.053Z"
+    },
+    {
+      "id": "tkt-id-TKT-1043",
+      "ticketNumber": "TKT-1043",
+      "eventId": "demo-event-blackout-2026",
+      "attendeeName": "Priya Verma",
+      "attendeeEmail": "priya@example.com",
+      "tier": "General",
+      "qrPayload": "{\"tkt\":\"TKT-1043\",\"eid\":\"demo-event-blackout-2026\",\"att\":\"Priya Verma\",\"tok\":\"demo-token-TKT-1043\"}",
+      "status": "issued",
+      "firstCheckIn": null,
+      "checkInCount": 0,
+      "createdAt": "2026-10-29T14:37:12.054Z"
+    },
+    {
+      "id": "tkt-id-TKT-1044",
+      "ticketNumber": "TKT-1044",
+      "eventId": "demo-event-blackout-2026",
+      "attendeeName": "Aarav Patel",
+      "attendeeEmail": "aarav@example.com",
+      "tier": "VIP",
+      "qrPayload": "{\"tkt\":\"TKT-1044\",\"eid\":\"demo-event-blackout-2026\",\"att\":\"Aarav Patel\",\"tok\":\"demo-token-TKT-1044\"}",
+      "status": "issued",
+      "firstCheckIn": null,
+      "checkInCount": 0,
+      "createdAt": "2026-10-29T14:37:12.054Z"
+    },
+    {
+      "id": "tkt-id-TKT-1045",
+      "ticketNumber": "TKT-1045",
+      "eventId": "demo-event-blackout-2026",
+      "attendeeName": "Neha Singh",
+      "attendeeEmail": "neha@example.com",
+      "tier": "General",
+      "qrPayload": "{\"tkt\":\"TKT-1045\",\"eid\":\"demo-event-blackout-2026\",\"att\":\"Neha Singh\",\"tok\":\"demo-token-TKT-1045\"}",
+      "status": "issued",
+      "firstCheckIn": null,
+      "checkInCount": 0,
+      "createdAt": "2026-10-29T14:37:12.054Z"
+    },
+    {
+      "id": "tkt-id-TKT-1046",
+      "ticketNumber": "TKT-1046",
+      "eventId": "demo-event-blackout-2026",
+      "attendeeName": "Kabir Mehta",
+      "attendeeEmail": "kabir@example.com",
+      "tier": "Early Bird",
+      "qrPayload": "{\"tkt\":\"TKT-1046\",\"eid\":\"demo-event-blackout-2026\",\"att\":\"Kabir Mehta\",\"tok\":\"demo-token-TKT-1046\"}",
+      "status": "issued",
+      "firstCheckIn": null,
+      "checkInCount": 0,
+      "createdAt": "2026-10-29T14:37:12.054Z"
+    }
+  ],
+  "checkIns": [
+    {
+      "entryId": "entry-a-1",
+      "ticketId": "tkt-id-TKT-1042",
+      "ticketNumber": "TKT-1042",
+      "eventId": "demo-event-blackout-2026",
+      "deviceId": "DEV-A",
+      "gateId": "Gate A",
+      "volunteerName": "Gate Volunteer",
+      "volunteerId": null,
+      "scannedAt": "2026-10-29T14:37:12.060Z",
+      "syncedAt": "2026-10-29T14:37:12.063Z",
+      "offlineSync": true,
+      "status": "valid"
+    },
+    {
+      "entryId": "entry-b-1",
+      "ticketId": "tkt-id-TKT-1042",
+      "ticketNumber": "TKT-1042",
+      "eventId": "demo-event-blackout-2026",
+      "deviceId": "DEV-B",
+      "gateId": "Gate B",
+      "volunteerName": "Gate Volunteer",
+      "volunteerId": null,
+      "scannedAt": "2026-10-29T14:37:12.065Z",
+      "syncedAt": "2026-10-29T14:37:12.068Z",
+      "offlineSync": true,
+      "status": "duplicate_conflict"
+    }
+  ],
+  "conflicts": [
+    {
+      "id": "79a4db9d-20dc-45cc-adf6-63a10f57445c",
+      "ticketId": "tkt-id-TKT-1042",
+      "ticketNumber": "TKT-1042",
+      "eventId": "demo-event-blackout-2026",
+      "attendeeName": "Rohan Sharma",
+      "status": "pending_review",
+      "conflictingEntries": [
+        {
+          "entryId": "entry-a-1",
+          "ticketId": "tkt-id-TKT-1042",
+          "ticketNumber": "TKT-1042",
+          "eventId": "demo-event-blackout-2026",
+          "deviceId": "DEV-A",
+          "gateId": "Gate A",
+          "volunteerName": "Gate Volunteer",
+          "volunteerId": null,
+          "scannedAt": "2026-10-29T14:37:12.060Z",
+          "syncedAt": "2026-10-29T14:37:12.063Z",
+          "offlineSync": true,
+          "status": "valid"
+        },
+        {
+          "entryId": "entry-b-1",
+          "ticketId": "tkt-id-TKT-1042",
+          "ticketNumber": "TKT-1042",
+          "eventId": "demo-event-blackout-2026",
+          "deviceId": "DEV-B",
+          "gateId": "Gate B",
+          "volunteerName": "Gate Volunteer",
+          "volunteerId": null,
+          "scannedAt": "2026-10-29T14:37:12.065Z",
+          "syncedAt": "2026-10-29T14:37:12.068Z",
+          "offlineSync": true,
+          "status": "duplicate_conflict"
+        }
+      ],
+      "createdAt": "2026-10-29T14:37:12.069Z",
+      "resolutionDecision": null,
+      "resolutionNotes": "",
+      "resolvedBy": null,
+      "resolvedAt": null
+    }
+  ]
+}
