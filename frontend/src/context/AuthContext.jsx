@@ -4,19 +4,8 @@ import { api } from '../utils/api';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    const cached = localStorage.getItem('blackout_cached_user');
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
-  });
-
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(() => localStorage.getItem('blackout_token'));
   
   // Gate scanner device credentials
@@ -30,26 +19,38 @@ export const AuthProvider = ({ children }) => {
     return id;
   });
 
-  // Verify online token if present, but NEVER log out user if offline
+  // Verify auth session on load: MUST validate with backend to prevent zombie/expired sessions
   useEffect(() => {
-    if (!token) return;
+    const savedToken = localStorage.getItem('blackout_token');
+    
+    if (!savedToken) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
 
-    let isMounted = true;
-    const verifyToken = async () => {
+    const verifySession = async () => {
       try {
         const res = await api.getMe();
-        if (isMounted && res.user) {
+        if (res.user) {
           setUser(res.user);
           localStorage.setItem('blackout_cached_user', JSON.stringify(res.user));
+        } else {
+          throw new Error('Invalid user payload');
         }
       } catch (err) {
-        // Offline or connection error: keep cached user session intact!
-        console.warn('Network auth verify skipped (Offline Resilience Mode Active)');
+        // If token is invalid or rejected by backend, FORCE CLEAN LOGOUT so user logs in fresh!
+        console.warn('Session verification failed, prompting clean login:', err.message);
+        localStorage.removeItem('blackout_token');
+        localStorage.removeItem('blackout_cached_user');
+        setUser(null);
+        setToken(null);
+      } finally {
+        setLoading(false);
       }
     };
 
-    verifyToken();
-    return () => { isMounted = false; };
+    verifySession();
   }, [token]);
 
   const login = (userData, authToken) => {
@@ -64,7 +65,6 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('blackout_cached_user');
     setToken(null);
     setUser(null);
-    // Complete clean reset to root
     window.location.href = '/';
   };
 
