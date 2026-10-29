@@ -119,13 +119,49 @@ The Organiser accesses the Conflict Center, reviews both records side-by-side (t
 
 ## 🚀 Quick Start Guide
 
-### 1. Installation
+### 1. Local Development
 Clone or navigate to the repository root:
 ```bash
 cd d:\Blackout_Hackathon
 npm run dev
 ```
-*(This starts both the backend API on port 5000 and the Vite frontend on port 5173).*
+*(This starts both the backend API on port 5000 and the Vite frontend on port 5173).* Or double-click `start.bat`.
+
+---
+
+## ☁️ 24/7 Vercel Cloud Deployment Guide
+
+The repository is already pre-configured for full-stack Vercel deployment with `vercel.json` and `/api/index.js` serverless function routing.
+
+### Step 1: Push Code to GitHub
+1. Create a new repository on [GitHub](https://github.com/new) named `blackout-event-entry`.
+2. Push your local project to GitHub:
+```bash
+git remote add origin https://github.com/<your-username>/blackout-event-entry.git
+git branch -M main
+git push -u origin main
+```
+
+### Step 2: Set Up 24/7 Cloud Database (MongoDB Atlas - 100% Free Forever)
+Because Vercel serverless functions restart and have an ephemeral file system, connecting to a cloud database guarantees your data stays stored **24/7 permanently across all devices**:
+1. Go to [mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas) and sign in.
+2. Create a **Free Shared Cluster (M0)** (Free Forever, zero cost).
+3. Under **Database Access**: Create a database user (e.g. `blackout_admin` and set a password).
+4. Under **Network Access**: Add IP Address `0.0.0.0/0` (Allow access from anywhere).
+5. Click **Connect** &rarr; **Drivers (Node.js)** &rarr; Copy your connection string:
+   `mongodb+srv://blackout_admin:<password>@cluster0.abcde.mongodb.net/blackout_db?retryWrites=true&w=majority`
+
+### Step 3: Deploy on Vercel
+1. Go to [vercel.com](https://vercel.com) and log in with your GitHub account.
+2. Click **"Add New..."** &rarr; **"Project"** &rarr; Select your `blackout-event-entry` repository.
+3. In **Environment Variables**, add:
+   - `MONGODB_URI`: *Your MongoDB Atlas connection string from Step 2*
+   - `JWT_SECRET`: `blackout_hackathon_super_secret_jwt_key_2026`
+4. Click **Deploy**!
+
+Vercel will build the frontend, deploy the serverless backend, and give you a live production URL (e.g. `https://blackout-event-entry.vercel.app`) running 24/7 with 99.99% uptime!
+
+---
 
 ### 2. Default Demo Credentials
 The backend automatically creates test accounts on first run:
