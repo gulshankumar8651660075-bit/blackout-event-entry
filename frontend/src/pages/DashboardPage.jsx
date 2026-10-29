@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
+import { offlineDbService } from '../db/dexieDb';
 import { StatCard } from '../components/StatCard';
 import { ConflictResolutionModal } from '../components/ConflictResolutionModal';
 import { 
@@ -15,8 +16,12 @@ import {
   MapPin, 
   ChevronRight,
   ShieldCheck,
-  ScanLine,
-  ArrowUpRight
+  ArrowUpRight,
+  Download,
+  Search,
+  Clock,
+  UserCheck,
+  Filter
 } from 'lucide-react';
 
 export const DashboardPage = () => {
@@ -27,6 +32,10 @@ export const DashboardPage = () => {
   const [activeConflict, setActiveConflict] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // History search & gate filter
+  const [historySearch, setHistorySearch] = useState('');
+  const [gateFilter, setGateFilter] = useState('ALL');
 
   const loadData = async () => {
     try {
@@ -41,8 +50,63 @@ export const DashboardPage = () => {
         const conflictRes = await api.getConflicts(current.id);
         setConflicts(conflictRes.conflicts || []);
 
-        const checkInRes = await api.getCheckIns(current.id);
-        setCheckIns(checkInRes.checkIns || []);
+        // 1. Fetch cloud check-ins
+        let serverCheckIns = [];
+        try {
+          const checkInRes = await api.getCheckIns(current.id);
+          serverCheckIns = checkInRes.checkIns || [];
+        } catch (e) {
+          console.warn('Server check-ins fetch notice:', e.message);
+        }
+
+        // 2. Fetch local IndexedDB audit history & local tickets
+        const localHistory = await offlineDbService.getScanHistory(100);
+        const localTickets = await offlineDbService.getAllLocalTickets();
+
+        // 3. Build comprehensive, unified check-in entries map
+        const combinedMap = new Map();
+
+        // Server check-ins
+        serverCheckIns.forEach(ci => {
+          const key = ci.entryId || ci.ticketNumber;
+          combinedMap.set(key, ci);
+        });
+
+        // Local scans on this device
+        localHistory.filter(h => h.status === 'valid' || h.status === 'locally_repeated').forEach(h => {
+          const key = h.entryId || h.ticketNumber;
+          if (!combinedMap.has(key)) {
+            combinedMap.set(key, {
+              entryId: h.entryId,
+              ticketNumber: h.ticketNumber,
+              attendeeName: h.attendeeName,
+              tier: h.tier || 'VIP',
+              gateId: h.gateId || 'Gate A',
+              scannedAt: h.scannedAt,
+              volunteerName: 'Gate Volunteer Terminal',
+              status: h.status
+            });
+          }
+        });
+
+        // Any tickets with status checked_in
+        localTickets.filter(t => t.status === 'checked_in').forEach(t => {
+          const key = t.ticketNumber;
+          if (!combinedMap.has(key)) {
+            combinedMap.set(key, {
+              entryId: 'ci-' + t.ticketNumber,
+              ticketNumber: t.ticketNumber,
+              attendeeName: t.attendeeName,
+              tier: t.tier || 'VIP',
+              gateId: t.firstCheckIn?.gateId || 'Gate A',
+              scannedAt: t.firstCheckIn?.scannedAt || t.lastScannedAt || t.createdAt,
+              volunteerName: t.firstCheckIn?.volunteerName || 'Gate Volunteer',
+              status: 'valid'
+            });
+          }
+        });
+
+        setCheckIns(Array.from(combinedMap.values()));
       }
     } catch (err) {
       console.warn('Dashboard fetch error:', err);
@@ -63,10 +127,46 @@ export const DashboardPage = () => {
     await loadData();
   };
 
+  // Export check-ins list to CSV for Organiser reports
+  const exportCheckInsCsv = () => {
+    if (checkIns.length === 0) {
+      alert('No check-in entries to export yet.');
+      return;
+    }
+    const headers = ['Attendee Name', 'Pass Serial', 'Tier', 'Gate', 'Check-in Time', 'Verified Status', 'Volunteer'];
+    const rows = checkIns.map(ci => [
+      `"${ci.attendeeName || 'Attendee'}"`,
+      `"${ci.ticketNumber || '-'}"`,
+      `"${ci.tier || 'General'}"`,
+      `"${ci.gateId || 'Gate A'}"`,
+      `"${new Date(ci.scannedAt).toLocaleString()}"`,
+      `"${ci.status === 'valid' ? 'Entry Granted' : 'Repeated Entry'}"`,
+      `"${ci.volunteerName || 'Gate Volunteer'}"`
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Blackout-Attendee-Entries-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const pendingConflictsCount = conflicts.filter(c => c.status === 'pending_review').length;
-  const attendancePercent = selectedEvent?.totalTickets 
-    ? Math.round((selectedEvent.checkedInCount / selectedEvent.totalTickets) * 100) 
-    : 0;
+  const totalPasses = selectedEvent?.totalTickets || 0;
+  const checkedInCount = checkIns.length > 0 ? checkIns.length : (selectedEvent?.checkedInCount || 0);
+  const attendancePercent = totalPasses > 0 ? Math.min(100, Math.round((checkedInCount / totalPasses) * 100)) : 0;
+
+  const filteredCheckIns = checkIns.filter(ci => {
+    const term = historySearch.toLowerCase();
+    const matchesSearch = 
+      (ci.attendeeName || '').toLowerCase().includes(term) ||
+      (ci.ticketNumber || '').toLowerCase().includes(term);
+    const matchesGate = gateFilter === 'ALL' || (ci.gateId || '').includes(gateFilter);
+    return matchesSearch && matchesGate;
+  });
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-16">
@@ -90,7 +190,7 @@ export const DashboardPage = () => {
           )}
         </div>
 
-        {/* Header Action Buttons */}
+        {/* Header Action Buttons (Organiser only: Refresh & Issue Passes) */}
         <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={() => { setRefreshing(true); loadData(); }}
@@ -103,18 +203,10 @@ export const DashboardPage = () => {
 
           <Link
             to="/tickets"
-            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center gap-2"
+            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            <span>Issue Passes</span>
-          </Link>
-
-          <Link
-            to="/scanner"
-            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition flex items-center gap-2"
-          >
-            <ScanLine className="w-4 h-4 text-emerald-400" />
-            <span>Open Terminal</span>
+            <span>+ Issue Passes &amp; QR</span>
           </Link>
         </div>
       </div>
@@ -123,14 +215,14 @@ export const DashboardPage = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Issued Passes"
-          value={selectedEvent ? selectedEvent.totalTickets : 0}
-          subtitle="Real attendee tickets"
+          value={totalPasses}
+          subtitle="Registered attendees"
           icon={Ticket}
           color="blue"
         />
         <StatCard
           title="Checked-in Attendees"
-          value={selectedEvent ? selectedEvent.checkedInCount : 0}
+          value={checkedInCount}
           subtitle={`${attendancePercent}% Overall Attendance`}
           icon={CheckCircle2}
           color="emerald"
@@ -205,107 +297,194 @@ export const DashboardPage = () => {
         </div>
       )}
 
-      {/* Two Columns: Gate Breakdown & Live Check-in Stream */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* Left Column: Quick Actions & Overview */}
-        <div className="lg:col-span-6 glass-panel p-6 rounded-3xl border border-slate-800 space-y-5">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h3 className="font-bold text-base text-white flex items-center gap-2">
-              <Users className="w-4 h-4 text-emerald-400" />
-              <span>Event Operations Overview</span>
-            </h3>
-            <Link to="/tickets" className="text-xs text-emerald-400 hover:underline flex items-center gap-1">
-              <span>View All Passes</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
+      {/* Operations Overview & Gate Breakdown */}
+      <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <h3 className="font-bold text-base text-white flex items-center gap-2">
+            <Users className="w-4 h-4 text-emerald-400" />
+            <span>Event Turnout &amp; Gate Breakdown</span>
+          </h3>
+          <Link to="/tickets" className="text-xs text-emerald-400 hover:underline flex items-center gap-1">
+            <span>Passes &amp; QR Manifest</span>
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
 
-          {/* Progress bar */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">Gate Check-in Progress</span>
-              <span className="font-mono font-bold text-white">{selectedEvent?.checkedInCount || 0} / {selectedEvent?.totalTickets || 0} Checked In</span>
-            </div>
-            <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
-              <div
-                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500 rounded-full"
-                style={{ width: `${attendancePercent}%` }}
-              ></div>
-            </div>
+        {/* Progress bar */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-400">Total Check-In Turnout</span>
+            <span className="font-mono font-bold text-white">{checkedInCount} / {totalPasses} Attendees Entered ({attendancePercent}%)</span>
           </div>
-
-          {/* Gate List */}
-          <div className="space-y-2 pt-2">
-            <span className="text-[11px] font-mono uppercase text-slate-400 font-bold">Active Entry Gates</span>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-              {(selectedEvent?.gates || ['Gate A', 'Gate B']).map((gate) => {
-                const countAtGate = checkIns.filter(c => c.gateId?.includes(gate.split(' ')[1] || gate)).length;
-                return (
-                  <div key={gate} className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-                    <span className="font-semibold text-white truncate block">{gate}</span>
-                    <span className="text-[11px] text-emerald-400 font-mono mt-1 block">{countAtGate} Scans Recorded</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Link to Passes */}
-          <div className="pt-2">
-            <Link
-              to="/tickets"
-              className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition flex items-center justify-center gap-2 border border-slate-700"
-            >
-              <span>Manage Passes &amp; Generate QR</span>
-              <ChevronRight className="w-4 h-4" />
-            </Link>
+          <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500 rounded-full"
+              style={{ width: `${attendancePercent}%` }}
+            ></div>
           </div>
         </div>
 
-        {/* Right Column: Live Check-in Activity Stream */}
-        <div className="lg:col-span-6 glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h3 className="font-bold text-base text-white flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Live Gate Entry Stream</span>
-            </h3>
-            <span className="text-xs text-slate-500 font-mono">Auto-Updating</span>
+        {/* Gate List */}
+        <div className="space-y-2 pt-2">
+          <span className="text-[11px] font-mono uppercase text-slate-400 font-bold">Active Entry Gates</span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            {(selectedEvent?.gates || ['Gate A', 'Gate B', 'Gate C']).map((gate) => {
+              const countAtGate = checkIns.filter(c => (c.gateId || '').includes(gate.split(' ')[0] || gate)).length;
+              return (
+                <div key={gate} className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold text-white block">{gate}</span>
+                    <span className="text-[11px] text-slate-400">Terminal Active</span>
+                  </div>
+                  <span className="text-xs text-emerald-400 font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/30">
+                    {countAtGate} Scanned
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ATTENDEE ENTRY AUDIT HISTORY (Who Took Entry - Full Detailed List) */}
+      <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 font-bold uppercase tracking-wider mb-1">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Real-Time Gate Entries</span>
+            </div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <span>Attendee Entry History</span>
+              <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-500/40">
+                {checkIns.length} Verified Entries
+              </span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Complete audit ledger of every attendee who entered through gate scanners with time and gate details.
+            </p>
           </div>
 
-          {checkIns.length === 0 ? (
-            <div className="py-14 text-center text-slate-500 text-xs">
-              No check-ins recorded yet.
-              <br />
-              Volunteers will scan passes at the gates.
-            </div>
-          ) : (
-            <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
-              {checkIns.slice().reverse().map((ci) => (
-                <div
-                  key={ci.entryId}
-                  className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs flex items-center justify-between"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-emerald-400">{ci.ticketNumber}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/40 text-slate-300 font-mono">
-                        {ci.gateId}
-                      </span>
-                    </div>
-                    <span className="text-[11px] text-slate-400 mt-0.5 block">Scanned by: {ci.volunteerName}</span>
-                  </div>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={exportCheckInsCsv}
+              disabled={checkIns.length === 0}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 text-xs font-semibold border border-slate-700 transition flex items-center gap-1.5"
+              title="Download attendance list as CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Export CSV</span>
+            </button>
+          </div>
+        </div>
 
-                  <div className="text-right font-mono text-[10px] text-slate-400">
-                    <div>{new Date(ci.scannedAt).toLocaleTimeString()}</div>
-                    <span className="text-emerald-400">Verified</span>
-                  </div>
-                </div>
+        {/* Filter & Search Bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="relative w-full sm:w-80">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              value={historySearch}
+              onChange={(e) => setHistorySearch(e.target.value)}
+              placeholder="Search by attendee name or pass ID..."
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-sans"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <span className="text-xs text-slate-400 font-mono">Filter Gate:</span>
+            <div className="flex gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-mono">
+              {['ALL', 'Gate A', 'Gate B', 'Gate C'].map((g) => (
+                <button
+                  key={g}
+                  onClick={() => setGateFilter(g)}
+                  className={`px-2.5 py-1 rounded-lg transition ${
+                    gateFilter === g
+                      ? 'bg-emerald-600 text-white font-bold'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {g}
+                </button>
               ))}
             </div>
-          )}
+          </div>
         </div>
 
+        {/* Table of Check-ins */}
+        {filteredCheckIns.length === 0 ? (
+          <div className="py-14 text-center text-slate-500 text-xs border border-dashed border-slate-800 rounded-2xl">
+            {checkIns.length === 0 ? (
+              <div className="space-y-2">
+                <p className="text-slate-300 font-semibold text-sm">No gate entries recorded yet.</p>
+                <p className="text-slate-500 max-w-sm mx-auto">
+                  When gate volunteers scan passes with their terminals, attendees will appear here live with timestamps and gate details.
+                </p>
+              </div>
+            ) : (
+              <p>No check-in entries match your search or gate filter.</p>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-slate-800">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-950/90 text-slate-400 font-mono uppercase tracking-wider text-[10px] border-b border-slate-800">
+                <tr>
+                  <th className="py-3 px-4">Attendee Name</th>
+                  <th className="py-3 px-4">Pass ID</th>
+                  <th className="py-3 px-4">Pass Tier</th>
+                  <th className="py-3 px-4">Gate</th>
+                  <th className="py-3 px-4">Check-in Time</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Volunteer</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/80 bg-slate-900/40">
+                {filteredCheckIns.slice().reverse().map((ci, index) => (
+                  <tr key={ci.entryId || (ci.ticketNumber + '-' + index)} className="hover:bg-slate-800/40 transition">
+                    <td className="py-3 px-4">
+                      <div className="font-bold text-white text-sm">{ci.attendeeName || 'Attendee'}</div>
+                      <span className="text-[10px] text-slate-500 font-mono">Verified Attendee</span>
+                    </td>
+                    <td className="py-3 px-4 font-mono font-bold text-emerald-400">
+                      {ci.ticketNumber}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-200 border border-slate-700 font-mono text-[10px] font-semibold">
+                        {ci.tier || 'VIP'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="px-2.5 py-1 rounded-full bg-slate-950 text-slate-300 border border-slate-800 font-mono text-[11px] font-bold">
+                        {ci.gateId || 'Gate A'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 font-mono text-slate-300">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-slate-500" />
+                        <span>{ci.scannedAt ? new Date(ci.scannedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-'}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500">{ci.scannedAt ? new Date(ci.scannedAt).toLocaleDateString() : ''}</span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`inline-flex items-center gap-1 font-mono text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+                        ci.status === 'valid'
+                          ? 'bg-emerald-950/70 text-emerald-400 border-emerald-500/30'
+                          : 'bg-amber-950/70 text-amber-400 border-amber-500/30'
+                      }`}>
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>{ci.status === 'valid' ? 'ENTRY GRANTED' : 'REPEATED'}</span>
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono text-slate-400 text-[11px]">
+                      {ci.volunteerName || 'Gate Volunteer'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Resolution Modal */}

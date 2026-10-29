@@ -200,6 +200,8 @@ class DataStore {
         entryId,
         ticketId: ticket.id,
         ticketNumber: ticket.ticketNumber,
+        attendeeName: ticket.attendeeName,
+        tier: ticket.tier || 'General',
         eventId: ticket.eventId,
         deviceId: deviceId || deviceMeta.deviceId || 'Unknown Device',
         gateId: gateId || 'Gate A',

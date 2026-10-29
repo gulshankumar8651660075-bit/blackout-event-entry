@@ -54,8 +54,23 @@ const getCheckIns = async (req, res) => {
     const db = require('../config/db').readLocalDb();
     let checkIns = db.checkIns || [];
     if (eventId) {
-      checkIns = checkIns.filter(c => c.eventId === eventId);
+      const filtered = checkIns.filter(c => c.eventId === eventId);
+      if (filtered.length > 0) {
+        checkIns = filtered;
+      }
     }
+
+    // Enrich check-in entries with attendee name and tier from tickets manifest
+    const tickets = db.tickets || [];
+    checkIns = checkIns.map(ci => {
+      const t = tickets.find(ticket => ticket.ticketNumber === ci.ticketNumber || ticket.id === ci.ticketId);
+      return {
+        ...ci,
+        attendeeName: ci.attendeeName || t?.attendeeName || 'Attendee',
+        tier: ci.tier || t?.tier || 'General'
+      };
+    });
+
     res.json({ success: true, count: checkIns.length, checkIns });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
