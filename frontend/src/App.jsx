@@ -74,14 +74,15 @@ const AppContent = () => {
               <Route path="*" element={<Navigate to="/scanner" replace />} />
             </>
           ) : (
-            /* Organiser has full command center access */
+            /* Organiser has full management access (Overview, Passes & QR, Conflicts, Guide) */
             <>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/dashboard" element={<Navigate to="/" replace />} />
-              <Route path="/scanner" element={<GateScannerPage />} />
               <Route path="/tickets" element={<TicketsPage />} />
               <Route path="/conflicts" element={<ConflictCenterPage />} />
               <Route path="/demo" element={<DemoGuidePage />} />
+              {/* If organiser attempts to open /scanner, send them back to Passes & QR */}
+              <Route path="/scanner" element={<Navigate to="/tickets" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </>
           )}

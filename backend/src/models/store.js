@@ -70,7 +70,7 @@ class DataStore {
   static async createEvent(eventData, organizerId) {
     const db = readLocalDb();
     const newEvent = {
-      id: uuidv4(),
+      id: eventData.id || uuidv4(),
       title: eventData.title,
       description: eventData.description || '',
       date: eventData.date || new Date().toISOString().split('T')[0],

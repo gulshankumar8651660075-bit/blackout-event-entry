@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
-import confetti from 'canvas-confetti';
 import { api } from '../utils/api';
 import { offlineDbService } from '../db/dexieDb';
-import { useAuth } from '../context/AuthContext';
-import { sounds } from '../utils/audio';
 import { 
   Ticket, 
   Plus, 
@@ -14,20 +10,132 @@ import {
   Trash2, 
   Eye, 
   X, 
-  CheckCircle, 
-  Send, 
   Printer, 
   QrCode, 
   Sparkles,
-  Users,
-  Zap,
-  ScanLine,
-  AlertTriangle,
-  ArrowRight
+  Users
 } from 'lucide-react';
 
+// Single Pass Card Component with Live Visible QR Code
+const PassCardItem = ({ ticket, onPreview, onDelete }) => {
+  const [qrUrl, setQrUrl] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+    QRCode.toDataURL(
+      ticket.qrPayload || ticket.ticketNumber,
+      {
+        width: 140,
+        margin: 1,
+        color: {
+          dark: '#060911',
+          light: '#ffffff'
+        }
+      },
+      (err, url) => {
+        if (!err && url && isMounted) {
+          setQrUrl(url);
+        }
+      }
+    );
+    return () => { isMounted = false; };
+  }, [ticket]);
+
+  const handleDownload = (e) => {
+    e.stopPropagation();
+    if (!qrUrl) return;
+    const a = document.createElement('a');
+    a.href = qrUrl;
+    a.download = `${ticket.ticketNumber}-${ticket.attendeeName.replace(/\s+/g, '_')}-Pass.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  return (
+    <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden flex flex-col justify-between hover:border-emerald-500/60 transition-all duration-200 group bg-slate-900/70 shadow-xl">
+      {/* Top Header */}
+      <div className="p-3.5 bg-slate-950/80 border-b border-slate-800/80 flex items-center justify-between">
+        <div>
+          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">Serial</span>
+          <div className="font-mono font-bold text-emerald-400 text-sm tracking-wide">{ticket.ticketNumber}</div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+            ticket.status === 'checked_in'
+              ? 'bg-blue-950/70 border-blue-500/40 text-blue-300'
+              : 'bg-emerald-950/70 border-emerald-500/40 text-emerald-300'
+          }`}>
+            {ticket.status === 'checked_in' ? 'CHECKED IN' : 'ISSUED'}
+          </span>
+          <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-200 border border-slate-700 font-mono font-bold">
+            {ticket.tier || 'VIP'}
+          </span>
+        </div>
+      </div>
+
+      {/* QR Code Centerpiece */}
+      <div className="p-4 flex flex-col items-center justify-center text-center bg-slate-950/40">
+        <div 
+          onClick={() => onPreview(ticket)} 
+          className="p-2.5 bg-white rounded-2xl shadow-xl border border-slate-200 cursor-pointer hover:scale-105 transition-transform"
+          title="Click to view &amp; print full high-res pass"
+        >
+          {qrUrl ? (
+            <img src={qrUrl} alt={ticket.ticketNumber} className="w-32 h-32 block" />
+          ) : (
+            <div className="w-32 h-32 bg-slate-100 flex items-center justify-center text-slate-400">
+              <QrCode className="w-8 h-8" />
+            </div>
+          )}
+        </div>
+        <button
+          onClick={() => onPreview(ticket)}
+          className="text-[11px] font-mono text-emerald-400/90 hover:text-emerald-300 mt-2.5 flex items-center gap-1 transition"
+        >
+          <Eye className="w-3.5 h-3.5" />
+          <span>Click QR to expand / print</span>
+        </button>
+      </div>
+
+      {/* Attendee Info */}
+      <div className="px-4 pb-3 space-y-0.5">
+        <h4 className="font-bold text-white text-base truncate">{ticket.attendeeName}</h4>
+        <p className="text-xs text-slate-400 truncate">{ticket.attendeeEmail || 'Verified Attendee'}</p>
+      </div>
+
+      {/* Footer Actions */}
+      <div className="p-3 bg-slate-950/90 border-t border-slate-800/80 flex items-center justify-between gap-2">
+        <button
+          onClick={handleDownload}
+          className="flex-1 py-1.5 px-2.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span>Download PNG</span>
+        </button>
+
+        <button
+          onClick={() => onPreview(ticket)}
+          className="py-1.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1 transition"
+          title="Print official pass"
+        >
+          <Printer className="w-3.5 h-3.5" />
+          <span>Print</span>
+        </button>
+
+        <button
+          onClick={() => onDelete(ticket.id, ticket.ticketNumber)}
+          className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 border border-slate-700 transition"
+          title="Delete pass"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const TicketsPage = () => {
-  const navigate = useNavigate();
   const [tickets, setTickets] = useState([]);
   const [events, setEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -38,7 +146,6 @@ export const TicketsPage = () => {
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activePreviewTicket, setActivePreviewTicket] = useState(null);
-  const [scanFeedback, setScanFeedback] = useState(null);
   
   // New ticket form state
   const [formData, setFormData] = useState({
@@ -48,11 +155,32 @@ export const TicketsPage = () => {
     customSerial: ''
   });
 
-  const { activeGate, deviceId, user } = useAuth();
   const previewCanvasRef = useRef(null);
 
+  // Load passes with persistent local fallback (IndexedDB + localStorage)
   const loadData = async () => {
     try {
+      // 1. Instantly load locally saved passes so they NEVER disappear!
+      const localDexie = await offlineDbService.getAllLocalTickets();
+      let localBackup = [];
+      try {
+        const raw = localStorage.getItem('blackout_persisted_passes');
+        if (raw) localBackup = JSON.parse(raw);
+      } catch (e) {}
+
+      const combinedMap = new Map();
+      [...localDexie, ...localBackup].forEach(t => {
+        if (t && (t.id || t.ticketNumber)) {
+          const key = t.id || t.ticketNumber;
+          combinedMap.set(key, t);
+        }
+      });
+
+      if (combinedMap.size > 0) {
+        setTickets(Array.from(combinedMap.values()));
+      }
+
+      // 2. Fetch fresh updates from API
       const evRes = await api.getEvents();
       if (evRes.events && evRes.events.length > 0) {
         setEvents(evRes.events);
@@ -60,10 +188,21 @@ export const TicketsPage = () => {
         setSelectedEventId(eid);
 
         const tktRes = await api.getTickets(eid);
-        setTickets(tktRes.tickets || []);
+        if (tktRes.tickets) {
+          tktRes.tickets.forEach(t => {
+            const key = t.id || t.ticketNumber;
+            combinedMap.set(key, t);
+          });
+          const merged = Array.from(combinedMap.values());
+          setTickets(merged);
+          localStorage.setItem('blackout_persisted_passes', JSON.stringify(merged));
+          for (const item of merged) {
+            await offlineDbService.saveSingleTicket(item);
+          }
+        }
       }
     } catch (err) {
-      console.warn('Tickets load error:', err);
+      console.warn('Passes background sync warning:', err);
     } finally {
       setLoading(false);
     }
@@ -73,17 +212,17 @@ export const TicketsPage = () => {
     loadData();
   }, [selectedEventId]);
 
-  // Render QR Canvas whenever activePreviewTicket changes
+  // Render high-res QR canvas in preview modal
   useEffect(() => {
     if (activePreviewTicket && previewCanvasRef.current) {
       QRCode.toCanvas(
         previewCanvasRef.current,
         activePreviewTicket.qrPayload || activePreviewTicket.ticketNumber,
         {
-          width: 240,
+          width: 250,
           margin: 1.5,
           color: {
-            dark: '#000000',
+            dark: '#060911',
             light: '#ffffff'
           }
         },
@@ -112,13 +251,21 @@ export const TicketsPage = () => {
       });
 
       if (res.ticket) {
-        // Also cache locally into IndexedDB immediately so it's scan-ready offline
+        // 1. Immediately cache in IndexedDB & localStorage so pass NEVER vanishes!
         await offlineDbService.saveSingleTicket(res.ticket);
         
+        let persisted = [];
+        try {
+          const raw = localStorage.getItem('blackout_persisted_passes');
+          if (raw) persisted = JSON.parse(raw);
+        } catch (e) {}
+        persisted.push(res.ticket);
+        localStorage.setItem('blackout_persisted_passes', JSON.stringify(persisted));
+
+        setTickets(prev => [res.ticket, ...prev.filter(t => t.id !== res.ticket.id)]);
+
         setShowCreateModal(false);
         setFormData({ attendeeName: '', attendeeEmail: '', tier: 'VIP', customSerial: '' });
-        setScanFeedback(null);
-        await loadData();
         
         // Open preview modal immediately so user sees the newly generated QR pass
         setActivePreviewTicket(res.ticket);
@@ -134,12 +281,22 @@ export const TicketsPage = () => {
     if (window.confirm(`Delete pass ${ticketNumber}?`)) {
       try {
         await api.deleteTicket(ticketId);
-        await loadData();
+        
+        // Remove locally
+        let persisted = [];
+        try {
+          const raw = localStorage.getItem('blackout_persisted_passes');
+          if (raw) persisted = JSON.parse(raw);
+        } catch (e) {}
+        persisted = persisted.filter(t => t.id !== ticketId && t.ticketNumber !== ticketNumber);
+        localStorage.setItem('blackout_persisted_passes', JSON.stringify(persisted));
+
+        setTickets(prev => prev.filter(t => t.id !== ticketId && t.ticketNumber !== ticketNumber));
         if (activePreviewTicket?.id === ticketId) {
           setActivePreviewTicket(null);
         }
       } catch (err) {
-        alert('Delete failed: ' + err.message);
+        alert('Delete notice: ' + err.message);
       }
     }
   };
@@ -159,35 +316,10 @@ export const TicketsPage = () => {
     window.print();
   };
 
-  const handleQuickScanTest = async (ticket) => {
-    try {
-      const res = await offlineDbService.recordScan({
-        ticket,
-        deviceId,
-        gateId: activeGate,
-        volunteerName: user ? user.name : 'Lead Organiser',
-        eventId: ticket.eventId || selectedEventId
-      });
-
-      setScanFeedback(res);
-      setActivePreviewTicket(ticket);
-
-      if (res.status === 'valid') {
-        sounds.playSuccess();
-        confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
-      } else {
-        sounds.playWarning();
-      }
-      await loadData();
-    } catch (err) {
-      alert('Scan simulation failed: ' + err.message);
-    }
-  };
-
   const filteredTickets = tickets.filter(t => 
-    t.attendeeName.toLowerCase().includes(search.toLowerCase()) ||
-    t.ticketNumber.toLowerCase().includes(search.toLowerCase()) ||
-    t.tier.toLowerCase().includes(search.toLowerCase())
+    (t.attendeeName || '').toLowerCase().includes(search.toLowerCase()) ||
+    (t.ticketNumber || '').toLowerCase().includes(search.toLowerCase()) ||
+    (t.tier || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -197,143 +329,83 @@ export const TicketsPage = () => {
       <div className="glass-panel p-6 rounded-3xl border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 font-bold uppercase tracking-wider mb-1">
-            <Ticket className="w-3.5 h-3.5" />
-            <span>Pass Management &amp; Generation</span>
+            <QrCode className="w-3.5 h-3.5" />
+            <span>Attendee Passes &amp; QR Manifest</span>
           </div>
           <h1 className="text-3xl font-extrabold text-white tracking-tight">
-            Attendee Passes &amp; QR Codes
+            Attendee Passes &amp; QR Center
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Issue unique scannable QR passes for your event. All passes work 100% offline at the gate terminals.
+            Create attendee passes, view live QR codes, and download or print badges for attendees.
           </p>
         </div>
 
-        {/* Action Button */}
         <button
           onClick={() => setShowCreateModal(true)}
-          className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center justify-center gap-2"
+          className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center gap-2 self-start md:self-auto"
         >
           <Plus className="w-4 h-4" />
-          <span>+ Issue New QR Pass</span>
+          <span>+ Create Attendee Pass</span>
         </button>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="relative w-full sm:w-96">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+      {/* Control Bar: Event Filter & Search */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by attendee name or pass ID..."
-            className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+            className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-sans"
           />
         </div>
 
-        <div className="flex items-center gap-4 text-xs text-slate-400">
-          <span>Total Issued: <strong className="text-white font-mono">{filteredTickets.length}</strong></span>
-          <span className="w-1 h-1 rounded-full bg-slate-600"></span>
-          <span>Checked In: <strong className="text-emerald-400 font-mono">{filteredTickets.filter(t => t.status === 'checked_in').length}</strong></span>
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <span className="text-xs font-mono text-slate-400 font-semibold">Total Passes:</span>
+          <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-emerald-400">
+            {tickets.length}
+          </span>
         </div>
       </div>
 
-      {/* Passes Grid */}
-      {filteredTickets.length === 0 ? (
-        <div className="py-20 text-center glass-panel rounded-3xl border border-slate-800 space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center">
+      {/* Passes Grid: Real Live QR Codes visible on every card! */}
+      {loading && tickets.length === 0 ? (
+        <div className="py-20 text-center space-y-3">
+          <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-xs font-mono text-slate-400">Loading attendee passes...</p>
+        </div>
+      ) : filteredTickets.length === 0 ? (
+        <div className="glass-panel p-12 rounded-3xl border border-slate-800 text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
             <Ticket className="w-7 h-7" />
           </div>
-          <div className="space-y-1">
-            <h3 className="text-base font-bold text-white">No passes issued yet</h3>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Your ticket list is clean. Click below to generate and issue your first attendee pass.
+          <div>
+            <h3 className="text-base font-bold text-white">No passes found</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+              {search ? 'No passes matched your search term.' : 'Click "+ Create Attendee Pass" above to issue your first real QR event pass.'}
             </p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-md inline-flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Issue First Pass</span>
-          </button>
+          {!search && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition inline-flex items-center gap-2 shadow-lg shadow-emerald-950"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Issue First Pass</span>
+            </button>
+          )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTickets.map((t) => (
-            <div
-              key={t.id}
-              className="glass-card rounded-2xl border border-slate-800 overflow-hidden flex flex-col justify-between hover:border-slate-700 transition group"
-            >
-              {/* Header */}
-              <div className="p-4 bg-slate-950/40 border-b border-slate-800/80 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">Serial</span>
-                  <div className="font-mono font-bold text-emerald-400 text-base">{t.ticketNumber}</div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold border ${
-                    t.status === 'checked_in'
-                      ? 'bg-blue-950/60 border-blue-500/40 text-blue-400'
-                      : t.status === 'conflict'
-                      ? 'bg-rose-950/60 border-rose-500/40 text-rose-300'
-                      : 'bg-emerald-950/60 border-emerald-500/40 text-emerald-400'
-                  }`}>
-                    {t.status.toUpperCase()}
-                  </span>
-                  <span className="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono">
-                    {t.tier}
-                  </span>
-                </div>
-              </div>
-
-              {/* Body */}
-              <div className="p-4 space-y-2">
-                <div>
-                  <span className="text-[11px] text-slate-400">Attendee</span>
-                  <h4 className="font-bold text-white text-base truncate">{t.attendeeName}</h4>
-                  {t.attendeeEmail && (
-                    <p className="text-xs text-slate-400 truncate">{t.attendeeEmail}</p>
-                  )}
-                </div>
-
-                {t.firstCheckIn && (
-                  <div className="text-[11px] font-mono text-emerald-400/90 bg-emerald-950/40 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
-                    ✓ Checked-in at {t.firstCheckIn.gateId}
-                  </div>
-                )}
-              </div>
-
-              {/* Actions Footer */}
-              <div className="p-3 bg-slate-950/60 border-t border-slate-800/80 flex items-center justify-between gap-2">
-                <button
-                  onClick={() => setActivePreviewTicket(t)}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition"
-                >
-                  <QrCode className="w-3.5 h-3.5" />
-                  <span>View QR Pass</span>
-                </button>
-
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => handleQuickScanTest(t)}
-                    title="Simulate scan into active gate"
-                    className="px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1 transition"
-                  >
-                    <Zap className="w-3.5 h-3.5" />
-                    <span>Scan</span>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteTicket(t.id, t.ticketNumber)}
-                    title="Delete pass"
-                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 border border-slate-700 transition"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTickets.map((ticket) => (
+            <PassCardItem
+              key={ticket.id || ticket.ticketNumber}
+              ticket={ticket}
+              onPreview={setActivePreviewTicket}
+              onDelete={handleDeleteTicket}
+            />
           ))}
         </div>
       )}
@@ -365,8 +437,8 @@ export const TicketsPage = () => {
                   required
                   value={formData.attendeeName}
                   onChange={(e) => setFormData({ ...formData, attendeeName: e.target.value })}
-                  placeholder="e.g. Rahul Sharma"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  placeholder="e.g. Gulu Gupta"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-sans"
                 />
               </div>
 
@@ -378,8 +450,8 @@ export const TicketsPage = () => {
                   type="email"
                   value={formData.attendeeEmail}
                   onChange={(e) => setFormData({ ...formData, attendeeEmail: e.target.value })}
-                  placeholder="e.g. rahul@example.com"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  placeholder="e.g. gulugupta@gmail.com"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-sans"
                 />
               </div>
 
@@ -448,10 +520,7 @@ export const TicketsPage = () => {
                 <span className="font-mono font-bold text-xs text-white uppercase tracking-wider">Official Event Pass</span>
               </div>
               <button
-                onClick={() => {
-                  setActivePreviewTicket(null);
-                  setScanFeedback(null);
-                }}
+                onClick={() => setActivePreviewTicket(null)}
                 className="p-1 rounded-lg text-slate-400 hover:text-white"
               >
                 <X className="w-4 h-4" />
@@ -459,11 +528,11 @@ export const TicketsPage = () => {
             </div>
 
             {/* Pass Body (Printable Card Area) */}
-            <div className="px-6 py-4 text-center space-y-3">
+            <div className="px-6 py-5 text-center space-y-3">
               
               {/* QR Code Canvas */}
-              <div className="inline-block p-3 bg-white rounded-2xl shadow-xl border border-slate-200">
-                <canvas ref={previewCanvasRef} className="block w-48 h-48"></canvas>
+              <div className="inline-block p-3.5 bg-white rounded-2xl shadow-xl border border-slate-200">
+                <canvas ref={previewCanvasRef} className="block w-52 h-52"></canvas>
               </div>
 
               <div>
@@ -480,71 +549,26 @@ export const TicketsPage = () => {
                   {activePreviewTicket.tier} TIER
                 </span>
               </div>
-
-              {/* Instant Verification Verdict Banner if scanned */}
-              {scanFeedback && (
-                <div className={`p-3 rounded-2xl border text-left animate-in fade-in slide-in-from-bottom-2 ${
-                  scanFeedback.status === 'valid'
-                    ? 'bg-emerald-950/90 border-emerald-500/60 text-emerald-200'
-                    : 'bg-amber-950/90 border-amber-500/60 text-amber-200'
-                }`}>
-                  <div className="flex items-center gap-2 font-mono font-extrabold text-xs">
-                    {scanFeedback.status === 'valid' ? (
-                      <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                    ) : (
-                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                    )}
-                    <span>
-                      {scanFeedback.status === 'valid' ? `✓ ENTRY GRANTED AT ${activeGate}` : '⚠️ ALREADY SCANNED AT GATE'}
-                    </span>
-                  </div>
-                  <div className="text-[11px] font-mono text-slate-300 mt-1 pl-6">
-                    Speed: &lt;10ms &bull; Dexie.js Offline Queued
-                  </div>
-                </div>
-              )}
             </div>
 
-            {/* Action Buttons: Test Scan & Go to Terminal */}
-            <div className="p-4 bg-slate-950 border-t border-slate-800 space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickScanTest(activePreviewTicket)}
-                  className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950"
-                >
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>⚡ Test Scan Pass</span>
-                </button>
+            {/* Action Buttons: Download & Print */}
+            <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between gap-2">
+              <button
+                onClick={downloadQrImage}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Pass (PNG)</span>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => navigate('/scanner')}
-                  className="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-blue-950"
-                >
-                  <ScanLine className="w-3.5 h-3.5" />
-                  <span>Open Scanner →</span>
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 pt-1">
-                <button
-                  onClick={downloadQrImage}
-                  className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download Pass (PNG)</span>
-                </button>
-
-                <button
-                  onClick={printPass}
-                  className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center gap-1.5"
-                  title="Print ticket pass"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Print</span>
-                </button>
-              </div>
+              <button
+                onClick={printPass}
+                className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center gap-1.5"
+                title="Print ticket pass"
+              >
+                <Printer className="w-4 h-4" />
+                <span className="hidden sm:inline">Print Pass</span>
+              </button>
             </div>
 
           </div>

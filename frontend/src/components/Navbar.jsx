@@ -18,12 +18,11 @@ export const Navbar = ({ onSyncTrigger, isSyncing }) => {
   const { user, logout, activeGate, updateGate, isOrganizer, isVolunteer } = useAuth();
   const location = useLocation();
 
-  // Organiser Navigation (Management & Operations)
+  // Organiser Navigation (Management & Operations - NO Scanner here!)
   const organiserLinks = [
     { to: '/', label: 'Overview', icon: LayoutDashboard },
     { to: '/tickets', label: 'Passes & QR', icon: QrCode },
     { to: '/conflicts', label: 'Conflict Center', icon: AlertTriangle },
-    { to: '/scanner', label: 'Gate Terminal', icon: ScanLine },
     { to: '/demo', label: 'Demo Guide', icon: PlayCircle }
   ];
 

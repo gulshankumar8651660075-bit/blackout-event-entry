@@ -42,6 +42,7 @@ connectDB().then(async () => {
     const events = await DataStore.getEvents();
     if (events.length === 0) {
       await DataStore.createEvent({
+        id: 'event-blackout-2026-main',
         title: 'Main Arena Festival 2026',
         description: 'Official Live Event',
         date: new Date().toISOString().split('T')[0],
