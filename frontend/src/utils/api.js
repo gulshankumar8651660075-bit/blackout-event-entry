@@ -41,6 +41,11 @@ export const api = {
 
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 401) {
+          console.warn('Session expired, clearing stale auth token.');
+          localStorage.removeItem('blackout_token');
+          localStorage.removeItem('blackout_cached_user');
+        }
         throw new Error(data.message || 'API request failed');
       }
       return data;
