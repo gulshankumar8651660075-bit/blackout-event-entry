@@ -1,29 +1,17 @@
-const CACHE_NAME = 'blackout-cache-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/favicon.svg'
-];
+const CACHE_NAME = 'blackout-cache-v3';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('⚡ [Service Worker] Pre-caching offline app shell');
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
-  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
+    caches.keys().then((keys) => {
       return Promise.all(
-        cacheNames.map((name) => {
-          if (name !== CACHE_NAME) {
-            console.log('⚡ [Service Worker] Purging old cache:', name);
-            return caches.delete(name);
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            console.log('⚡ [Service Worker] Purging stale cache:', key);
+            return caches.delete(key);
           }
         })
       );
@@ -33,20 +21,43 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests; pass API requests through or handle via local DB
   if (event.request.method !== 'GET') return;
 
-  // Cache-first for static assets, network-first for others
+  const url = new URL(event.request.url);
+
+  // Skip API requests - never intercept API in service worker
+  if (url.pathname.startsWith('/api')) {
+    return;
+  }
+
+  // Navigation / HTML requests: Network-First so updates are received immediately!
+  if (event.request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // Static assets (/assets/*): Cache-first with network fallback
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
-      return fetch(event.request).catch(() => {
-        // If navigation request fails offline, fallback to cached index.html
-        if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
+      return fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
+        return networkResponse;
       });
     })
   );

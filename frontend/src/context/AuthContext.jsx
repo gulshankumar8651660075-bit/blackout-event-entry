@@ -4,8 +4,20 @@ import { api } from '../utils/api';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(() => {
+    const cached = localStorage.getItem('blackout_cached_user');
+    const token = localStorage.getItem('blackout_token');
+    if (cached && token) {
+      try {
+        return JSON.parse(cached);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  const [loading, setLoading] = useState(false);
   const [token, setToken] = useState(() => localStorage.getItem('blackout_token'));
   
   // Gate scanner device credentials
@@ -19,38 +31,36 @@ export const AuthProvider = ({ children }) => {
     return id;
   });
 
-  // Verify auth session on load: MUST validate with backend to prevent zombie/expired sessions
+  // Verify auth session in background: if token rejected by backend, clear session
   useEffect(() => {
     const savedToken = localStorage.getItem('blackout_token');
-    
     if (!savedToken) {
       setUser(null);
-      setLoading(false);
       return;
     }
 
+    let isMounted = true;
     const verifySession = async () => {
       try {
         const res = await api.getMe();
-        if (res.user) {
+        if (isMounted && res.user) {
           setUser(res.user);
           localStorage.setItem('blackout_cached_user', JSON.stringify(res.user));
-        } else {
-          throw new Error('Invalid user payload');
         }
       } catch (err) {
-        // If token is invalid or rejected by backend, FORCE CLEAN LOGOUT so user logs in fresh!
-        console.warn('Session verification failed, prompting clean login:', err.message);
-        localStorage.removeItem('blackout_token');
-        localStorage.removeItem('blackout_cached_user');
-        setUser(null);
-        setToken(null);
-      } finally {
-        setLoading(false);
+        // If rejected by backend with 401 or invalid token, clean up and prompt login
+        if (isMounted) {
+          console.warn('Session verification failed, resetting auth:', err.message);
+          localStorage.removeItem('blackout_token');
+          localStorage.removeItem('blackout_cached_user');
+          setUser(null);
+          setToken(null);
+        }
       }
     };
 
     verifySession();
+    return () => { isMounted = false; };
   }, [token]);
 
   const login = (userData, authToken) => {

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en" class="dark" style="background-color: #060911; color: #f1f5f9;">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#090d16" />
+    <meta name="theme-color" content="#060911" />
     <meta name="description" content="BLACKOUT: Event entry that keeps working when the internet stops" />
     <link rel="manifest" href="/manifest.json" />
     <title>BLACKOUT | Offline-First Event Entry</title>
@@ -13,17 +13,18 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   </head>
-  <body class="bg-slate-950 text-slate-100 antialiased font-sans selection:bg-emerald-500 selection:text-black min-h-screen">
+  <body class="bg-[#060911] text-slate-100 antialiased font-sans selection:bg-emerald-500 selection:text-black min-h-screen" style="background-color: #060911; color: #f1f5f9; margin: 0;">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
-      // Register Service Worker for true PWA offline execution
+      // Register Service Worker with auto-update
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').then(reg => {
-            console.log('⚡ [PWA] Service Worker registered with scope:', reg.scope);
+            reg.update();
+            console.log('⚡ [PWA] Service Worker active');
           }).catch(err => {
-            console.log('⚠️ [PWA] Service Worker registration failed:', err);
+            console.warn('PWA registration skipped:', err);
           });
         });
       }
