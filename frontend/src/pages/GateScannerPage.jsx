@@ -23,7 +23,8 @@ export const GateScannerPage = () => {
   
   // Offline State
   const [cachedEvent, setCachedEvent] = useState(null);
-  const [cachedTicketsCount, setCachedTicketsCount] = useState(5);
+  const [cachedTicketsCount, setCachedTicketsCount] = useState(0);
+  const [availableTickets, setAvailableTickets] = useState([]);
   const [pendingScans, setPendingScans] = useState([]);
   const [scanHistory, setScanHistory] = useState([]);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -35,12 +36,31 @@ export const GateScannerPage = () => {
     try {
       await offlineDbService.ensureBaselineData();
       const ev = await offlineDbService.getCachedEvent();
-      const count = await offlineDbService.getCachedTicketsCount();
+      let count = await offlineDbService.getCachedTicketsCount();
+
+      // If local Dexie is empty but internet is available, auto-cache tickets seamlessly
+      if (count === 0 && isActuallyOnline()) {
+        try {
+          const eventRes = await api.getEvents();
+          if (eventRes.events && eventRes.events.length > 0) {
+            const pkg = await api.downloadOfflinePackage(eventRes.events[0].id);
+            if (pkg.tickets && pkg.tickets.length > 0) {
+              await offlineDbService.saveEventOfflinePackage(pkg.event, pkg.tickets);
+              count = pkg.tickets.length;
+            }
+          }
+        } catch (apiErr) {
+          console.warn('Auto cache sync notice:', apiErr.message);
+        }
+      }
+
+      const allLocal = await offlineDbService.getAllLocalTickets();
       const pending = await offlineDbService.getPendingScans();
       const history = await offlineDbService.getScanHistory(15);
 
       setCachedEvent(ev);
       setCachedTicketsCount(count);
+      setAvailableTickets(allLocal);
       setPendingScans(pending);
       setScanHistory(history);
     } catch (e) {
@@ -87,7 +107,23 @@ export const GateScannerPage = () => {
   // Slide 03 Step 02 & 03: Verify Locally & Save Entry
   const handleScanCode = async (rawCode) => {
     // 1. Look up in local Dexie IndexedDB
-    const matchedTicket = await offlineDbService.findLocalTicket(rawCode);
+    let matchedTicket = await offlineDbService.findLocalTicket(rawCode);
+
+    // If not found in local cache but device is online, check API to ensure newly issued pass is loaded
+    if (!matchedTicket && isActuallyOnline()) {
+      try {
+        const events = await api.getEvents();
+        if (events.events?.length > 0) {
+          const pkg = await api.downloadOfflinePackage(events.events[0].id);
+          if (pkg.tickets?.length > 0) {
+            await offlineDbService.saveEventOfflinePackage(pkg.event, pkg.tickets);
+            matchedTicket = await offlineDbService.findLocalTicket(rawCode);
+          }
+        }
+      } catch (e) {
+        console.warn('Scan fallback fetch notice:', e.message);
+      }
+    }
 
     // 2. Record scan in local Dexie pending queue
     const result = await offlineDbService.recordScan({
@@ -288,6 +324,7 @@ export const GateScannerPage = () => {
             onScanCode={handleScanCode}
             isOfflineReady={true}
             activeGate={activeGate}
+            availableTickets={availableTickets}
           />
         </div>
 

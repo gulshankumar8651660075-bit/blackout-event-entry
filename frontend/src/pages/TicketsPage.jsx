@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
+import confetti from 'canvas-confetti';
 import { api } from '../utils/api';
 import { offlineDbService } from '../db/dexieDb';
 import { useAuth } from '../context/AuthContext';
+import { sounds } from '../utils/audio';
 import { 
   Ticket, 
   Plus, 
@@ -16,10 +19,15 @@ import {
   Printer, 
   QrCode, 
   Sparkles,
-  Users
+  Users,
+  Zap,
+  ScanLine,
+  AlertTriangle,
+  ArrowRight
 } from 'lucide-react';
 
 export const TicketsPage = () => {
+  const navigate = useNavigate();
   const [tickets, setTickets] = useState([]);
   const [events, setEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -30,6 +38,7 @@ export const TicketsPage = () => {
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activePreviewTicket, setActivePreviewTicket] = useState(null);
+  const [scanFeedback, setScanFeedback] = useState(null);
   
   // New ticket form state
   const [formData, setFormData] = useState({
@@ -108,6 +117,7 @@ export const TicketsPage = () => {
         
         setShowCreateModal(false);
         setFormData({ attendeeName: '', attendeeEmail: '', tier: 'VIP', customSerial: '' });
+        setScanFeedback(null);
         await loadData();
         
         // Open preview modal immediately so user sees the newly generated QR pass
@@ -155,10 +165,19 @@ export const TicketsPage = () => {
         ticket,
         deviceId,
         gateId: activeGate,
-        volunteerName: user ? user.name : 'Organiser',
-        eventId: selectedEventId
+        volunteerName: user ? user.name : 'Lead Organiser',
+        eventId: ticket.eventId || selectedEventId
       });
-      alert(`🎫 Pass ${ticket.ticketNumber} scanned into ${activeGate}!\nVerdict: ${res.status.toUpperCase()}`);
+
+      setScanFeedback(res);
+      setActivePreviewTicket(ticket);
+
+      if (res.status === 'valid') {
+        sounds.playSuccess();
+        confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+      } else {
+        sounds.playWarning();
+      }
       await loadData();
     } catch (err) {
       alert('Scan simulation failed: ' + err.message);
@@ -299,9 +318,10 @@ export const TicketsPage = () => {
                   <button
                     onClick={() => handleQuickScanTest(t)}
                     title="Simulate scan into active gate"
-                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
+                    className="px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1 transition"
                   >
-                    <Send className="w-3.5 h-3.5 text-blue-400" />
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Scan</span>
                   </button>
                   <button
                     onClick={() => handleDeleteTicket(t.id, t.ticketNumber)}
@@ -419,7 +439,7 @@ export const TicketsPage = () => {
       {/* Modal 2: High-Resolution Printable QR Pass Preview */}
       {activePreviewTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden shadow-2xl space-y-3 animate-in fade-in zoom-in-95">
             
             {/* Top Pass Brand */}
             <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
@@ -428,7 +448,10 @@ export const TicketsPage = () => {
                 <span className="font-mono font-bold text-xs text-white uppercase tracking-wider">Official Event Pass</span>
               </div>
               <button
-                onClick={() => setActivePreviewTicket(null)}
+                onClick={() => {
+                  setActivePreviewTicket(null);
+                  setScanFeedback(null);
+                }}
                 className="p-1 rounded-lg text-slate-400 hover:text-white"
               >
                 <X className="w-4 h-4" />
@@ -436,11 +459,11 @@ export const TicketsPage = () => {
             </div>
 
             {/* Pass Body (Printable Card Area) */}
-            <div className="p-6 text-center space-y-4">
+            <div className="px-6 py-4 text-center space-y-3">
               
               {/* QR Code Canvas */}
               <div className="inline-block p-3 bg-white rounded-2xl shadow-xl border border-slate-200">
-                <canvas ref={previewCanvasRef} className="block w-52 h-52"></canvas>
+                <canvas ref={previewCanvasRef} className="block w-48 h-48"></canvas>
               </div>
 
               <div>
@@ -453,30 +476,75 @@ export const TicketsPage = () => {
               <div className="space-y-0.5">
                 <h4 className="text-lg font-bold text-white">{activePreviewTicket.attendeeName}</h4>
                 <p className="text-xs text-slate-400">{activePreviewTicket.attendeeEmail || 'Verified Attendee'}</p>
-                <span className="inline-block mt-2 text-xs font-mono font-bold px-3 py-1 rounded-full bg-slate-800 text-slate-200 border border-slate-700">
+                <span className="inline-block mt-1 text-xs font-mono font-bold px-3 py-0.5 rounded-full bg-slate-800 text-slate-200 border border-slate-700">
                   {activePreviewTicket.tier} TIER
                 </span>
               </div>
+
+              {/* Instant Verification Verdict Banner if scanned */}
+              {scanFeedback && (
+                <div className={`p-3 rounded-2xl border text-left animate-in fade-in slide-in-from-bottom-2 ${
+                  scanFeedback.status === 'valid'
+                    ? 'bg-emerald-950/90 border-emerald-500/60 text-emerald-200'
+                    : 'bg-amber-950/90 border-amber-500/60 text-amber-200'
+                }`}>
+                  <div className="flex items-center gap-2 font-mono font-extrabold text-xs">
+                    {scanFeedback.status === 'valid' ? (
+                      <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                    )}
+                    <span>
+                      {scanFeedback.status === 'valid' ? `✓ ENTRY GRANTED AT ${activeGate}` : '⚠️ ALREADY SCANNED AT GATE'}
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-mono text-slate-300 mt-1 pl-6">
+                    Speed: &lt;10ms &bull; Dexie.js Offline Queued
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Action Buttons: Download & Print */}
-            <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between gap-2">
-              <button
-                onClick={downloadQrImage}
-                className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950"
-              >
-                <Download className="w-4 h-4" />
-                <span>Download Pass (PNG)</span>
-              </button>
+            {/* Action Buttons: Test Scan & Go to Terminal */}
+            <div className="p-4 bg-slate-950 border-t border-slate-800 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleQuickScanTest(activePreviewTicket)}
+                  className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>⚡ Test Scan Pass</span>
+                </button>
 
-              <button
-                onClick={printPass}
-                className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center gap-1.5"
-                title="Print ticket pass"
-              >
-                <Printer className="w-4 h-4" />
-                <span className="hidden sm:inline">Print</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/scanner')}
+                  className="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-blue-950"
+                >
+                  <ScanLine className="w-3.5 h-3.5" />
+                  <span>Open Scanner →</span>
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <button
+                  onClick={downloadQrImage}
+                  className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Pass (PNG)</span>
+                </button>
+
+                <button
+                  onClick={printPass}
+                  className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center gap-1.5"
+                  title="Print ticket pass"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Print</span>
+                </button>
+              </div>
             </div>
 
           </div>

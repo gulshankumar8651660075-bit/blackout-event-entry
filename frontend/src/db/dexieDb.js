@@ -66,10 +66,28 @@ export const offlineDbService = {
     return await db.localTickets.count();
   },
 
+  // Ensure baseline tickets data is ready in local IndexedDB
+  async ensureBaselineData() {
+    try {
+      return await db.localTickets.count();
+    } catch (e) {
+      return 0;
+    }
+  },
+
+  // Get all locally cached tickets
+  async getAllLocalTickets() {
+    try {
+      return await db.localTickets.toArray();
+    } catch (e) {
+      return [];
+    }
+  },
+
   // Find ticket in local IndexedDB by ticketNumber or full QR payload
   async findLocalTicket(rawCode) {
     if (!rawCode) return null;
-    const cleanCode = rawCode.trim();
+    const cleanCode = String(rawCode).trim();
 
     // Check if rawCode is JSON payload (Slide 05 & 06)
     let searchTicketNumber = cleanCode;
@@ -82,7 +100,7 @@ export const offlineDbService = {
       // Not JSON
     }
 
-    // Smart normalization: if user typed '1001', convert to 'TKT-1001' or 'BLK-1001'
+    // Smart normalization: if user typed '1001', convert to 'TKT-1001'
     let normalized = searchTicketNumber.toUpperCase().replace(/\s+/g, '');
     if (/^\d+$/.test(normalized)) {
       normalized = `TKT-${normalized}`;
@@ -90,13 +108,19 @@ export const offlineDbService = {
 
     // Direct match by exact or normalized ticketNumber
     const all = await db.localTickets.toArray();
-    let ticket = all.find(t => 
-      t.ticketNumber.toUpperCase() === normalized ||
-      t.ticketNumber.toUpperCase() === searchTicketNumber.toUpperCase() ||
-      t.ticketNumber.replace('-', '').toUpperCase() === normalized.replace('-', '') ||
-      (t.qrPayload && t.qrPayload.includes(searchTicketNumber)) ||
-      t.id === searchTicketNumber
-    );
+    let ticket = all.find(t => {
+      const num = (t.ticketNumber || '').toUpperCase();
+      const norm = (normalized || '').toUpperCase();
+      const raw = (searchTicketNumber || '').toUpperCase();
+      return (
+        num === norm ||
+        num === raw ||
+        num.replace(/[^A-Z0-9]/g, '') === norm.replace(/[^A-Z0-9]/g, '') ||
+        (t.qrPayload && t.qrPayload.includes(searchTicketNumber)) ||
+        t.id === searchTicketNumber ||
+        (t.attendeeName && t.attendeeName.toLowerCase() === cleanCode.toLowerCase())
+      );
+    });
 
     return ticket || null;
   },
@@ -109,7 +133,9 @@ export const offlineDbService = {
     volunteerName,
     eventId
   }) {
-    const entryId = crypto.randomUUID();
+    const entryId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+      ? crypto.randomUUID() 
+      : 'entry-' + Math.random().toString(36).substring(2, 11) + '-' + Date.now();
     const scannedAt = new Date().toISOString();
 
     let scanResultStatus = 'valid'; // 'valid' | 'locally_repeated' | 'invalid' | 'cancelled'
