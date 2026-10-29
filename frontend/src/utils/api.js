@@ -65,8 +65,9 @@ export const api = {
   downloadOfflinePackage: (eventId) => api.request(`/events/${eventId}/download-offline`),
 
   // Tickets
-  getTickets: (eventId) => api.request(`/tickets?eventId=${eventId}`),
+  getTickets: (eventId) => api.request(eventId ? `/tickets?eventId=${eventId}` : '/tickets'),
   createTicket: (data) => api.request('/tickets', { method: 'POST', body: JSON.stringify(data) }),
+  deleteTicket: (id) => api.request(`/tickets/${id}`, { method: 'DELETE' }),
   bulkCreateTickets: (data) => api.request('/tickets/bulk', { method: 'POST', body: JSON.stringify(data) }),
 
   // Offline Sync & Conflicts (Slide 07 & 08)

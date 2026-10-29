@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 5000;
 
 // Connect to Database (MongoDB or embedded fallback)
 connectDB().then(async () => {
-  // Auto-seed initial demo accounts and event if not present
+  // Ensure default admin & volunteer accounts exist if empty
   try {
     let org = await DataStore.findUserByEmail('organizer@blackout.io');
     if (!org) {
@@ -24,7 +24,7 @@ connectDB().then(async () => {
         password: hash,
         role: 'organizer'
       });
-      console.log('👤 [AutoSeed] Created Lead Organiser account: organizer@blackout.io');
+      console.log('👤 [Setup] Default Lead Organiser created: organizer@blackout.io');
     }
 
     let vol = await DataStore.findUserByEmail('volunteer@blackout.io');
@@ -36,13 +36,22 @@ connectDB().then(async () => {
         password: hash,
         role: 'volunteer'
       });
-      console.log('👤 [AutoSeed] Created Gate Volunteer account: volunteer@blackout.io');
+      console.log('👤 [Setup] Default Gate Volunteer created: volunteer@blackout.io');
     }
 
-    await DataStore.seedDemoEvent(org.id);
-    console.log('🎫 [AutoSeed] Seeded Electric Horizon Festival with Slide 12 sample tickets.');
+    const events = await DataStore.getEvents();
+    if (events.length === 0) {
+      await DataStore.createEvent({
+        title: 'Main Arena Festival 2026',
+        description: 'Official Live Event',
+        date: new Date().toISOString().split('T')[0],
+        venue: 'Main Arena',
+        gates: ['Gate A - North VIP', 'Gate B - South General', 'Gate C - Fast Track']
+      }, org.id);
+      console.log('🎪 [Setup] Clean primary event created.');
+    }
   } catch (err) {
-    console.warn('Auto-seed warning:', err.message);
+    console.warn('Startup check warning:', err.message);
   }
 });
 

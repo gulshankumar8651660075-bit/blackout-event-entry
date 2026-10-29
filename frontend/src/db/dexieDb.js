@@ -17,37 +17,8 @@ db.version(1).stores({
   scanHistory: '++id, entryId, ticketNumber, attendeeName, status, scannedAt, gateId'
 });
 
-export const DEFAULT_DEMO_EVENT = {
-  id: 'demo-event-blackout-2026',
-  title: 'Electric Horizon Music Festival 2026',
-  venue: 'Grand Arena, North Complex',
-  date: new Date().toISOString().split('T')[0],
-  gates: ['Gate A', 'Gate B', 'Gate C']
-};
-
-export const DEFAULT_DEMO_TICKETS = [
-  { id: 'tkt-id-TKT-1042', ticketNumber: 'TKT-1042', eventId: 'demo-event-blackout-2026', attendeeName: 'Rohan Sharma', attendeeEmail: 'rohan@example.com', tier: 'VIP', status: 'issued', locallyScanned: false, localScanCount: 0 },
-  { id: 'tkt-id-TKT-1043', ticketNumber: 'TKT-1043', eventId: 'demo-event-blackout-2026', attendeeName: 'Priya Verma', attendeeEmail: 'priya@example.com', tier: 'General', status: 'issued', locallyScanned: false, localScanCount: 0 },
-  { id: 'tkt-id-TKT-1044', ticketNumber: 'TKT-1044', eventId: 'demo-event-blackout-2026', attendeeName: 'Aarav Patel', attendeeEmail: 'aarav@example.com', tier: 'VIP', status: 'issued', locallyScanned: false, localScanCount: 0 },
-  { id: 'tkt-id-TKT-1045', ticketNumber: 'TKT-1045', eventId: 'demo-event-blackout-2026', attendeeName: 'Neha Singh', attendeeEmail: 'neha@example.com', tier: 'General', status: 'issued', locallyScanned: false, localScanCount: 0 },
-  { id: 'tkt-id-TKT-1046', ticketNumber: 'TKT-1046', eventId: 'demo-event-blackout-2026', attendeeName: 'Kabir Mehta', attendeeEmail: 'kabir@example.com', tier: 'Early Bird', status: 'issued', locallyScanned: false, localScanCount: 0 }
-];
-
 // Helper functions for IndexedDB operations
 export const offlineDbService = {
-  // Ensure local DB has baseline data so scanning NEVER fails out-of-the-box
-  async ensureBaselineData() {
-    try {
-      const count = await db.localTickets.count();
-      if (count === 0) {
-        console.log('⚡ [Dexie.js] Pre-populating baseline offline tickets...');
-        await this.saveEventOfflinePackage(DEFAULT_DEMO_EVENT, DEFAULT_DEMO_TICKETS);
-      }
-    } catch (e) {
-      console.warn('Baseline init error:', e);
-    }
-  },
-
   // Save downloaded event & tickets into IndexedDB
   async saveEventOfflinePackage(eventData, tickets) {
     await db.transaction('rw', db.eventMeta, db.localTickets, async () => {
@@ -62,32 +33,42 @@ export const offlineDbService = {
 
       const formattedTickets = tickets.map(t => ({
         ...t,
-        locallyScanned: false,
-        localScanCount: 0
+        locallyScanned: t.status === 'checked_in',
+        localScanCount: t.checkInCount || 0
       }));
 
       await db.localTickets.bulkPut(formattedTickets);
     });
   },
 
+  // Save single ticket directly into local IndexedDB (for instantaneous local availability)
+  async saveSingleTicket(ticket) {
+    try {
+      await db.localTickets.put({
+        ...ticket,
+        locallyScanned: false,
+        localScanCount: 0
+      });
+      console.log(`🎫 [Dexie.js] Cached new pass locally: ${ticket.ticketNumber}`);
+    } catch (e) {
+      console.warn('Error saving single ticket to Dexie:', e);
+    }
+  },
+
   // Get active cached event
   async getCachedEvent() {
-    await this.ensureBaselineData();
     const events = await db.eventMeta.toArray();
-    return events.length > 0 ? events[0] : DEFAULT_DEMO_EVENT;
+    return events.length > 0 ? events[0] : null;
   },
 
   // Check local ticket count
   async getCachedTicketsCount() {
-    await this.ensureBaselineData();
     return await db.localTickets.count();
   },
 
   // Find ticket in local IndexedDB by ticketNumber or full QR payload
   async findLocalTicket(rawCode) {
     if (!rawCode) return null;
-    await this.ensureBaselineData();
-
     const cleanCode = rawCode.trim();
 
     // Check if rawCode is JSON payload (Slide 05 & 06)
@@ -101,13 +82,13 @@ export const offlineDbService = {
       // Not JSON
     }
 
-    // Smart normalization: if user typed '1042', convert to 'TKT-1042'
+    // Smart normalization: if user typed '1001', convert to 'TKT-1001' or 'BLK-1001'
     let normalized = searchTicketNumber.toUpperCase().replace(/\s+/g, '');
     if (/^\d+$/.test(normalized)) {
       normalized = `TKT-${normalized}`;
     }
 
-    // 1. Direct match by exact or normalized ticketNumber
+    // Direct match by exact or normalized ticketNumber
     const all = await db.localTickets.toArray();
     let ticket = all.find(t => 
       t.ticketNumber.toUpperCase() === normalized ||
@@ -128,8 +109,6 @@ export const offlineDbService = {
     volunteerName,
     eventId
   }) {
-    await this.ensureBaselineData();
-
     const entryId = crypto.randomUUID();
     const scannedAt = new Date().toISOString();
 
@@ -146,13 +125,13 @@ export const offlineDbService = {
       scanResultStatus = 'valid';
     }
 
-    // Always queue valid and locally repeated tickets into pendingScans
+    // Queue valid and locally repeated tickets into pendingScans
     if (ticket) {
       const scanEntry = {
         entryId,
         ticketId: ticket.id,
         ticketNumber: ticket.ticketNumber,
-        eventId: eventId || ticket.eventId || DEFAULT_DEMO_EVENT.id,
+        eventId: eventId || ticket.eventId,
         deviceId: deviceId || 'Gate-Device-1',
         gateId: gateId || 'Gate A',
         volunteerName: volunteerName || 'Volunteer',
@@ -171,7 +150,6 @@ export const offlineDbService = {
           lastScannedAt: scannedAt
         });
       } catch (err) {
-        // If not in table, add it
         await db.localTickets.put({
           ...ticket,
           locallyScanned: true,
@@ -184,8 +162,8 @@ export const offlineDbService = {
     // Add to local audit history for the UI feed
     const historyItem = {
       entryId,
-      ticketNumber: ticket ? ticket.ticketNumber : (rawCode || 'UNKNOWN'),
-      attendeeName: ticket ? ticket.attendeeName : 'Unknown Attendee',
+      ticketNumber: ticket ? ticket.ticketNumber : 'UNKNOWN',
+      attendeeName: ticket ? ticket.attendeeName : 'Unregistered Ticket',
       tier: ticket ? ticket.tier : '-',
       status: scanResultStatus,
       scannedAt,
@@ -241,6 +219,5 @@ export const offlineDbService = {
     await db.localTickets.clear();
     await db.pendingScans.clear();
     await db.scanHistory.clear();
-    await this.ensureBaselineData();
   }
 };

@@ -3,7 +3,7 @@ const router = express.Router();
 
 const { register, login, getMe, seedDemoAccounts } = require('../controllers/auth.controller');
 const { getEvents, getEventById, createEvent, downloadOfflinePackage } = require('../controllers/event.controller');
-const { getTickets, createTicket, bulkCreateTickets } = require('../controllers/ticket.controller');
+const { getTickets, createTicket, deleteTicket, bulkCreateTickets } = require('../controllers/ticket.controller');
 const { syncBatch, getCheckIns } = require('../controllers/sync.controller');
 const { getConflicts, resolveConflict } = require('../controllers/conflict.controller');
 const { verifyToken, requireRole } = require('../middleware/auth');
@@ -25,6 +25,7 @@ router.get('/events/:eventId/download-offline', verifyToken, downloadOfflinePack
 // === TICKETS ===
 router.get('/tickets', verifyToken, getTickets);
 router.post('/tickets', verifyToken, requireRole('organizer'), createTicket);
+router.delete('/tickets/:id', verifyToken, requireRole('organizer'), deleteTicket);
 router.post('/tickets/bulk', verifyToken, requireRole('organizer'), bulkCreateTickets);
 
 // === OFFLINE SYNC (Slide 07) ===

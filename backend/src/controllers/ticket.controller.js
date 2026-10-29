@@ -2,9 +2,14 @@ const DataStore = require('../models/store');
 
 const getTickets = async (req, res) => {
   try {
-    const { eventId } = req.query;
+    let { eventId } = req.query;
     if (!eventId) {
-      return res.status(400).json({ success: false, message: 'eventId query parameter is required.' });
+      const events = await DataStore.getEvents();
+      if (events.length > 0) {
+        eventId = events[0].id;
+      } else {
+        return res.json({ success: true, tickets: [] });
+      }
     }
     const tickets = await DataStore.getTicketsByEvent(eventId);
     res.json({ success: true, tickets });
@@ -15,16 +20,31 @@ const getTickets = async (req, res) => {
 
 const createTicket = async (req, res) => {
   try {
-    const { eventId, attendeeName, attendeeEmail, tier, ticketNumber } = req.body;
-    if (!eventId || !attendeeName) {
-      return res.status(400).json({ success: false, message: 'eventId and attendeeName are required.' });
+    let { eventId, attendeeName, attendeeEmail, tier, ticketNumber } = req.body;
+
+    // Auto-resolve eventId if not provided
+    if (!eventId) {
+      const events = await DataStore.getEvents();
+      if (events.length > 0) {
+        eventId = events[0].id;
+      } else {
+        const defaultEv = await DataStore.createEvent({
+          title: 'Main Arena Festival 2026',
+          venue: 'Main Arena'
+        }, req.user?.id || 'admin');
+        eventId = defaultEv.id;
+      }
+    }
+
+    if (!attendeeName || !attendeeName.trim()) {
+      return res.status(400).json({ success: false, message: 'Attendee name is required.' });
     }
 
     const ticket = await DataStore.createTicket({
       eventId,
-      attendeeName,
-      attendeeEmail,
-      tier,
+      attendeeName: attendeeName.trim(),
+      attendeeEmail: (attendeeEmail || '').trim(),
+      tier: tier || 'General',
       ticketNumber
     });
 
@@ -34,20 +54,36 @@ const createTicket = async (req, res) => {
   }
 };
 
+const deleteTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = require('../config/db').readLocalDb();
+    const idx = db.tickets.findIndex(t => t.id === id || t.ticketNumber === id);
+    if (idx !== -1) {
+      db.tickets.splice(idx, 1);
+      require('../config/db').writeLocalDb(db);
+      return res.json({ success: true, message: 'Ticket deleted successfully' });
+    }
+    res.status(404).json({ success: false, message: 'Ticket not found' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 const bulkCreateTickets = async (req, res) => {
   try {
-    const { eventId, count = 5, attendees = [] } = req.body;
+    let { eventId, count = 5, attendees = [] } = req.body;
     if (!eventId) {
-      return res.status(400).json({ success: false, message: 'eventId is required.' });
+      const events = await DataStore.getEvents();
+      eventId = events.length > 0 ? events[0].id : 'event-main-01';
     }
 
     let ticketList = [];
     if (attendees.length > 0) {
       ticketList = attendees;
     } else {
-      // Auto generate random sample tickets
-      const sampleNames = ['Aman Verma', 'Ananya Gupta', 'Karan Malhotra', 'Sneha Kapoor', 'Vikram Joshi', 'Divya Iyer', 'Rahul Sengupta'];
-      const tiers = ['VIP', 'General', 'Early Bird'];
+      const sampleNames = ['Rohan Sharma', 'Priya Verma', 'Aarav Patel', 'Neha Singh', 'Kabir Mehta'];
+      const tiers = ['VIP', 'General', 'VIP', 'General', 'Early Bird'];
       for (let i = 0; i < count; i++) {
         const name = sampleNames[i % sampleNames.length] + (i >= sampleNames.length ? ` #${i+1}` : '');
         ticketList.push({
@@ -68,5 +104,6 @@ const bulkCreateTickets = async (req, res) => {
 module.exports = {
   getTickets,
   createTicket,
+  deleteTicket,
   bulkCreateTickets
 };

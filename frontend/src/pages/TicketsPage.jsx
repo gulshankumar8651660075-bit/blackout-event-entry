@@ -1,10 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import QRCode from 'qrcode';
 import { api } from '../utils/api';
-import { TicketCard } from '../components/TicketCard';
-import { Ticket, Plus, Users, Search, RefreshCw, Send, Sparkles } from 'lucide-react';
 import { offlineDbService } from '../db/dexieDb';
 import { useAuth } from '../context/AuthContext';
+import { 
+  Ticket, 
+  Plus, 
+  Search, 
+  Download, 
+  Trash2, 
+  Eye, 
+  X, 
+  CheckCircle, 
+  Send, 
+  Printer, 
+  QrCode, 
+  Sparkles,
+  Users
+} from 'lucide-react';
 
 export const TicketsPage = () => {
   const [tickets, setTickets] = useState([]);
@@ -13,11 +26,21 @@ export const TicketsPage = () => {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newAttendee, setNewAttendee] = useState({ name: '', email: '', tier: 'VIP' });
+  
+  // Modals state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [activePreviewTicket, setActivePreviewTicket] = useState(null);
+  
+  // New ticket form state
+  const [formData, setFormData] = useState({
+    attendeeName: '',
+    attendeeEmail: '',
+    tier: 'VIP',
+    customSerial: ''
+  });
 
   const { activeGate, deviceId, user } = useAuth();
-  const navigate = useNavigate();
+  const previewCanvasRef = useRef(null);
 
   const loadData = async () => {
     try {
@@ -41,53 +64,102 @@ export const TicketsPage = () => {
     loadData();
   }, [selectedEventId]);
 
+  // Render QR Canvas whenever activePreviewTicket changes
+  useEffect(() => {
+    if (activePreviewTicket && previewCanvasRef.current) {
+      QRCode.toCanvas(
+        previewCanvasRef.current,
+        activePreviewTicket.qrPayload || activePreviewTicket.ticketNumber,
+        {
+          width: 240,
+          margin: 1.5,
+          color: {
+            dark: '#000000',
+            light: '#ffffff'
+          }
+        },
+        (error) => {
+          if (error) console.error('QR canvas rendering error:', error);
+        }
+      );
+    }
+  }, [activePreviewTicket]);
+
   const handleCreateTicket = async (e) => {
     e.preventDefault();
-    if (!newAttendee.name.trim()) return;
+    if (!formData.attendeeName.trim()) {
+      alert('Please enter attendee name.');
+      return;
+    }
 
     setCreating(true);
     try {
-      await api.createTicket({
+      const res = await api.createTicket({
         eventId: selectedEventId,
-        attendeeName: newAttendee.name,
-        attendeeEmail: newAttendee.email,
-        tier: newAttendee.tier
+        attendeeName: formData.attendeeName.trim(),
+        attendeeEmail: formData.attendeeEmail.trim(),
+        tier: formData.tier,
+        ticketNumber: formData.customSerial.trim() || undefined
       });
-      setShowAddModal(false);
-      setNewAttendee({ name: '', email: '', tier: 'VIP' });
-      await loadData();
+
+      if (res.ticket) {
+        // Also cache locally into IndexedDB immediately so it's scan-ready offline
+        await offlineDbService.saveSingleTicket(res.ticket);
+        
+        setShowCreateModal(false);
+        setFormData({ attendeeName: '', attendeeEmail: '', tier: 'VIP', customSerial: '' });
+        await loadData();
+        
+        // Open preview modal immediately so user sees the newly generated QR pass
+        setActivePreviewTicket(res.ticket);
+      }
     } catch (err) {
-      alert('Error creating ticket: ' + err.message);
+      alert('Failed to generate ticket: ' + err.message);
     } finally {
       setCreating(false);
     }
   };
 
-  const handleBulkGenerate = async () => {
-    setCreating(true);
-    try {
-      await api.bulkCreateTickets({ eventId: selectedEventId, count: 5 });
-      await loadData();
-      alert('✅ 5 sample tickets generated successfully!');
-    } catch (err) {
-      alert('Bulk generate failed: ' + err.message);
-    } finally {
-      setCreating(false);
+  const handleDeleteTicket = async (ticketId, ticketNumber) => {
+    if (window.confirm(`Delete pass ${ticketNumber}?`)) {
+      try {
+        await api.deleteTicket(ticketId);
+        await loadData();
+        if (activePreviewTicket?.id === ticketId) {
+          setActivePreviewTicket(null);
+        }
+      } catch (err) {
+        alert('Delete failed: ' + err.message);
+      }
     }
   };
 
-  // Quick simulate scan directly into Dexie.js for testing
-  const handleQuickScan = async (ticket) => {
+  const downloadQrImage = () => {
+    if (!previewCanvasRef.current || !activePreviewTicket) return;
+    const url = previewCanvasRef.current.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${activePreviewTicket.ticketNumber}-${activePreviewTicket.attendeeName.replace(/\s+/g, '_')}-Pass.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const printPass = () => {
+    window.print();
+  };
+
+  const handleQuickScanTest = async (ticket) => {
     try {
       const res = await offlineDbService.recordScan({
         ticket,
         deviceId,
         gateId: activeGate,
-        volunteerName: user ? user.name : 'Gate Volunteer',
+        volunteerName: user ? user.name : 'Organiser',
         eventId: selectedEventId
       });
-
-      alert(`🎫 Scanned ${ticket.ticketNumber} locally at ${activeGate}!\nStatus: ${res.status.toUpperCase()}\nHead to the Gate Scanner or Dashboard to view!`);
+      alert(`🎫 Pass ${ticket.ticketNumber} scanned into ${activeGate}!\nVerdict: ${res.status.toUpperCase()}`);
+      await loadData();
     } catch (err) {
       alert('Scan simulation failed: ' + err.message);
     }
@@ -102,142 +174,315 @@ export const TicketsPage = () => {
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-16">
       
-      {/* Top Banner */}
+      {/* Header Banner */}
       <div className="glass-panel p-6 rounded-3xl border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 font-bold tracking-wider uppercase mb-1">
+          <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 font-bold uppercase tracking-wider mb-1">
             <Ticket className="w-3.5 h-3.5" />
-            <span>Slide 05: Ticket Passes &amp; QR Manifest</span>
+            <span>Pass Management &amp; Generation</span>
           </div>
           <h1 className="text-3xl font-extrabold text-white tracking-tight">
-            Event Tickets &amp; QR Passes
+            Attendee Passes &amp; QR Codes
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Display QR codes for attendees or use "Simulate Scan" to test multi-gate offline flow.
+            Issue unique scannable QR passes for your event. All passes work 100% offline at the gate terminals.
           </p>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <button
-            onClick={handleBulkGenerate}
-            disabled={creating}
-            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 text-xs font-bold transition flex items-center gap-2"
-          >
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>+ Generate 5 Sample Passes</span>
-          </button>
-
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Single Attendee</span>
-          </button>
-        </div>
+        {/* Action Button */}
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center justify-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          <span>+ Issue New QR Pass</span>
+        </button>
       </div>
 
-      {/* Filter / Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 glass-card p-4 rounded-2xl border border-slate-800">
-        <div className="relative w-full sm:w-80">
+      {/* Search & Filter Bar */}
+      <div className="glass-card p-4 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="relative w-full sm:w-96">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, ticket ID, tier..."
-            className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+            placeholder="Search by attendee name or pass ID..."
+            className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
           />
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-slate-400">
-          <span>Active Scanner Gate: <strong className="text-emerald-400 font-mono">{activeGate}</strong></span>
+        <div className="flex items-center gap-4 text-xs text-slate-400">
+          <span>Total Issued: <strong className="text-white font-mono">{filteredTickets.length}</strong></span>
           <span className="w-1 h-1 rounded-full bg-slate-600"></span>
-          <span>Total: <strong className="text-white">{filteredTickets.length}</strong></span>
+          <span>Checked In: <strong className="text-emerald-400 font-mono">{filteredTickets.filter(t => t.status === 'checked_in').length}</strong></span>
         </div>
       </div>
 
-      {/* Tickets Grid */}
+      {/* Passes Grid */}
       {filteredTickets.length === 0 ? (
-        <div className="py-16 text-center text-slate-500 text-sm glass-panel rounded-3xl">
-          No tickets found matching your filter.
+        <div className="py-20 text-center glass-panel rounded-3xl border border-slate-800 space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center">
+            <Ticket className="w-7 h-7" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-white">No passes issued yet</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              Your ticket list is clean. Click below to generate and issue your first attendee pass.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-md inline-flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Issue First Pass</span>
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTickets.map((ticket) => (
-            <TicketCard
-              key={ticket.id}
-              ticket={ticket}
-              onQuickScan={handleQuickScan}
-            />
+          {filteredTickets.map((t) => (
+            <div
+              key={t.id}
+              className="glass-card rounded-2xl border border-slate-800 overflow-hidden flex flex-col justify-between hover:border-slate-700 transition group"
+            >
+              {/* Header */}
+              <div className="p-4 bg-slate-950/40 border-b border-slate-800/80 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">Serial</span>
+                  <div className="font-mono font-bold text-emerald-400 text-base">{t.ticketNumber}</div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold border ${
+                    t.status === 'checked_in'
+                      ? 'bg-blue-950/60 border-blue-500/40 text-blue-400'
+                      : t.status === 'conflict'
+                      ? 'bg-rose-950/60 border-rose-500/40 text-rose-300'
+                      : 'bg-emerald-950/60 border-emerald-500/40 text-emerald-400'
+                  }`}>
+                    {t.status.toUpperCase()}
+                  </span>
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono">
+                    {t.tier}
+                  </span>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="p-4 space-y-2">
+                <div>
+                  <span className="text-[11px] text-slate-400">Attendee</span>
+                  <h4 className="font-bold text-white text-base truncate">{t.attendeeName}</h4>
+                  {t.attendeeEmail && (
+                    <p className="text-xs text-slate-400 truncate">{t.attendeeEmail}</p>
+                  )}
+                </div>
+
+                {t.firstCheckIn && (
+                  <div className="text-[11px] font-mono text-emerald-400/90 bg-emerald-950/40 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+                    ✓ Checked-in at {t.firstCheckIn.gateId}
+                  </div>
+                )}
+              </div>
+
+              {/* Actions Footer */}
+              <div className="p-3 bg-slate-950/60 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                <button
+                  onClick={() => setActivePreviewTicket(t)}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>View QR Pass</span>
+                </button>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => handleQuickScanTest(t)}
+                    title="Simulate scan into active gate"
+                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
+                  >
+                    <Send className="w-3.5 h-3.5 text-blue-400" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTicket(t.id, t.ticketNumber)}
+                    title="Delete pass"
+                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 border border-slate-700 transition"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+            </div>
           ))}
         </div>
       )}
 
-      {/* Add Attendee Modal */}
-      {showAddModal && (
+      {/* Modal 1: Issue New Pass Modal */}
+      {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-white">Create New Attendee Pass</h3>
-            <form onSubmit={handleCreateTicket} className="space-y-3">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-3xl p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Ticket className="w-5 h-5 text-emerald-400" />
+                <h3 className="font-bold text-base text-white">Issue New Attendee Pass</h3>
+              </div>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTicket} className="space-y-4">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Attendee Name *</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Attendee Full Name *
+                </label>
                 <input
                   type="text"
                   required
-                  value={newAttendee.name}
-                  onChange={(e) => setNewAttendee({ ...newAttendee, name: e.target.value })}
+                  value={formData.attendeeName}
+                  onChange={(e) => setFormData({ ...formData, attendeeName: e.target.value })}
                   placeholder="e.g. Rahul Sharma"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Email Address</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Email Address (Optional)
+                </label>
                 <input
                   type="email"
-                  value={newAttendee.email}
-                  onChange={(e) => setNewAttendee({ ...newAttendee, email: e.target.value })}
+                  value={formData.attendeeEmail}
+                  onChange={(e) => setFormData({ ...formData, attendeeEmail: e.target.value })}
                   placeholder="e.g. rahul@example.com"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Ticket Tier</label>
-                <select
-                  value={newAttendee.tier}
-                  onChange={(e) => setNewAttendee({ ...newAttendee, tier: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                >
-                  <option value="VIP">VIP</option>
-                  <option value="General">General Admission</option>
-                  <option value="Early Bird">Early Bird</option>
-                  <option value="Staff">Staff / Media</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Pass Tier
+                  </label>
+                  <select
+                    value={formData.tier}
+                    onChange={(e) => setFormData({ ...formData, tier: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="VIP">VIP Access</option>
+                    <option value="General">General Admission</option>
+                    <option value="Early Bird">Early Bird</option>
+                    <option value="Crew">Crew / Backstage</option>
+                    <option value="Media">Media / Press</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Custom ID (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.customSerial}
+                    onChange={(e) => setFormData({ ...formData, customSerial: e.target.value })}
+                    placeholder="Auto: TKT-1001"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
+                  />
+                </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-xs text-slate-400 hover:text-white"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={creating}
-                  className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition"
+                  className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-emerald-950"
                 >
-                  {creating ? 'Creating...' : 'Issue Ticket'}
+                  {creating ? 'Generating QR...' : 'Generate & Issue Pass'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* Modal 2: High-Resolution Printable QR Pass Preview */}
+      {activePreviewTicket && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+            
+            {/* Top Pass Brand */}
+            <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <QrCode className="w-4 h-4 text-emerald-400" />
+                <span className="font-mono font-bold text-xs text-white uppercase tracking-wider">Official Event Pass</span>
+              </div>
+              <button
+                onClick={() => setActivePreviewTicket(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Pass Body (Printable Card Area) */}
+            <div className="p-6 text-center space-y-4">
+              
+              {/* QR Code Canvas */}
+              <div className="inline-block p-3 bg-white rounded-2xl shadow-xl border border-slate-200">
+                <canvas ref={previewCanvasRef} className="block w-52 h-52"></canvas>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">Pass Serial</span>
+                <h3 className="font-mono font-extrabold text-2xl text-emerald-400">
+                  {activePreviewTicket.ticketNumber}
+                </h3>
+              </div>
+
+              <div className="space-y-0.5">
+                <h4 className="text-lg font-bold text-white">{activePreviewTicket.attendeeName}</h4>
+                <p className="text-xs text-slate-400">{activePreviewTicket.attendeeEmail || 'Verified Attendee'}</p>
+                <span className="inline-block mt-2 text-xs font-mono font-bold px-3 py-1 rounded-full bg-slate-800 text-slate-200 border border-slate-700">
+                  {activePreviewTicket.tier} TIER
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons: Download & Print */}
+            <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between gap-2">
+              <button
+                onClick={downloadQrImage}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Pass (PNG)</span>
+              </button>
+
+              <button
+                onClick={printPass}
+                className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center gap-1.5"
+                title="Print ticket pass"
+              >
+                <Printer className="w-4 h-4" />
+                <span className="hidden sm:inline">Print</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

@@ -12,10 +12,10 @@ import { offlineDbService } from './db/dexieDb';
 import { api, isActuallyOnline } from './utils/api';
 
 const AppContent = () => {
-  const { user, loading, activeGate, deviceId } = useAuth();
+  const { user, loading, activeGate, deviceId, isOrganizer, isVolunteer } = useAuth();
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Global manual sync trigger accessible from Navbar
+  // Global manual sync trigger
   const handleGlobalSync = async () => {
     if (!isActuallyOnline()) {
       alert('⚠️ Cannot sync while offline. Reconnect or turn off simulated blackout.');
@@ -67,12 +67,24 @@ const AppContent = () => {
       <Navbar onSyncTrigger={handleGlobalSync} isSyncing={isSyncing} />
       <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-6 pb-12">
         <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/scanner" element={<GateScannerPage />} />
-          <Route path="/tickets" element={<TicketsPage />} />
-          <Route path="/conflicts" element={<ConflictCenterPage />} />
-          <Route path="/demo" element={<DemoGuidePage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* Volunteer lands directly on /scanner; cannot view organiser pages */}
+          {isVolunteer ? (
+            <>
+              <Route path="/scanner" element={<GateScannerPage />} />
+              <Route path="*" element={<Navigate to="/scanner" replace />} />
+            </>
+          ) : (
+            /* Organiser has full command center access */
+            <>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/dashboard" element={<Navigate to="/" replace />} />
+              <Route path="/scanner" element={<GateScannerPage />} />
+              <Route path="/tickets" element={<TicketsPage />} />
+              <Route path="/conflicts" element={<ConflictCenterPage />} />
+              <Route path="/demo" element={<DemoGuidePage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </>
+          )}
         </Routes>
       </main>
     </div>
