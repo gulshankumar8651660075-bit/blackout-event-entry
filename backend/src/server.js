@@ -52,11 +52,12 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(morgan('dev'));
 
-// API Routes
+// API Routes (Mounted on both /api and root to guarantee 100% compatibility with Vercel rewrites)
 app.use('/api', apiRoutes);
+app.use('/', apiRoutes);
 
 // Health check & status
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/health'], (req, res) => {
   res.json({
     status: 'online',
     system: 'BLACKOUT Event Entry Offline-First Core',
