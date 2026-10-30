@@ -54,10 +54,11 @@ const getCheckIns = async (req, res) => {
     const db = require('../config/db').readLocalDb();
     let checkIns = db.checkIns || [];
     if (eventId) {
-      const filtered = checkIns.filter(c => c.eventId === eventId);
-      if (filtered.length > 0) {
-        checkIns = filtered;
-      }
+      checkIns = checkIns.filter(c => c.eventId === eventId);
+    } else if (req.user?.role === 'organizer') {
+      const myEvents = await DataStore.getEvents(req.user.id);
+      const myEventIds = myEvents.map(e => e.id);
+      checkIns = checkIns.filter(c => myEventIds.includes(c.eventId));
     }
 
     // Enrich check-in entries with attendee name, phone, email, and tier from tickets manifest

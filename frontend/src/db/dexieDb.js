@@ -139,6 +139,19 @@ export const offlineDbService = {
     }
   },
 
+  // Completely wipe local device database on account logout or user switch
+  async clearAllData() {
+    try {
+      await db.eventMeta.clear();
+      await db.localTickets.clear();
+      await db.pendingScans.clear();
+      await db.scanHistory.clear();
+      console.log('🧹 [Dexie] Local offline database cleared for user isolation.');
+    } catch (e) {
+      console.warn('Dexie clearAllData notice:', e);
+    }
+  },
+
   // Get active cached event
   async getCachedEvent() {
     const events = await db.eventMeta.toArray();

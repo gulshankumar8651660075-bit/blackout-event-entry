@@ -2,7 +2,23 @@ const DataStore = require('../models/store');
 
 const getEvents = async (req, res) => {
   try {
-    const events = await DataStore.getEvents();
+    let events = [];
+    if (req.user && req.user.role === 'organizer') {
+      events = await DataStore.getEvents(req.user.id);
+      // If this organizer has no event yet, auto-create a clean, fresh event for them
+      if (events.length === 0) {
+        const newEvent = await DataStore.createEvent({
+          title: `${req.user.name}'s Event`,
+          venue: 'Main Arena',
+          date: new Date().toISOString().split('T')[0],
+          gates: ['Gate A - North VIP', 'Gate B - South General', 'Gate C - Fast Track']
+        }, req.user.id);
+        events = [newEvent];
+      }
+    } else {
+      // Volunteers: show active events to scan
+      events = await DataStore.getEvents();
+    }
     res.json({ success: true, events });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

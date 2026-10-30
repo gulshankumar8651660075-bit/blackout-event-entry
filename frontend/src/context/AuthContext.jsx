@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../utils/api';
+import { offlineDbService } from '../db/dexieDb';
 
 const AuthContext = createContext(null);
 
@@ -58,19 +59,42 @@ export const AuthProvider = ({ children }) => {
     return () => { isMounted = false; };
   }, [token]);
 
-  const login = (userData, authToken) => {
+  const login = async (userData, authToken) => {
+    const previousRaw = localStorage.getItem('blackout_cached_user');
+    if (previousRaw) {
+      try {
+        const prev = JSON.parse(previousRaw);
+        if (prev.id !== userData.id) {
+          // Different user logged in! Purge local Dexie & old cached passes to guarantee zero data leakage
+          await offlineDbService.clearAllData();
+          Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('blackout_passes_') || key === 'blackout_persisted_passes') {
+              localStorage.removeItem(key);
+            }
+          });
+        }
+      } catch (e) {}
+    }
     localStorage.setItem('blackout_token', authToken);
     localStorage.setItem('blackout_cached_user', JSON.stringify(userData));
     setToken(authToken);
     setUser(userData);
   };
 
-  const logout = () => {
+  const logout = async () => {
     localStorage.removeItem('blackout_token');
     localStorage.removeItem('blackout_cached_user');
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('blackout_passes_') || key === 'blackout_persisted_passes') {
+        localStorage.removeItem(key);
+      }
+    });
+    try {
+      await offlineDbService.clearAllData();
+    } catch (e) {}
     setToken(null);
     setUser(null);
-    window.location.href = '/';
+    window.location.href = '/login';
   };
 
   // 1-Click Fast Role Switcher for Hackathon Testing & Evaluation

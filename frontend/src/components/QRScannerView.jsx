@@ -35,6 +35,7 @@ export const QRScannerView = ({
   // Camera & Debounce Guard Refs
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const mobileCameraInputRef = useRef(null);
   const isLockedRef = useRef(false);
   const lastScannedCodeRef = useRef('');
   const lastScannedTimeRef = useRef(0);
@@ -119,15 +120,14 @@ export const QRScannerView = ({
 
       const currentFacing = overrideFacing || cameraFacing;
 
-      // Dynamic mobile viewport sizing
+      // Dynamic mobile viewport sizing without rigid aspect ratio constraint (prevents OverconstrainedError on phones)
       const config = {
         fps: 10,
         qrbox: (viewfinderWidth, viewfinderHeight) => {
           const minDimension = Math.min(viewfinderWidth, viewfinderHeight);
-          const size = Math.max(180, Math.floor(minDimension * 0.72));
+          const size = Math.max(160, Math.floor(minDimension * 0.70));
           return { width: size, height: size };
-        },
-        aspectRatio: 1.0,
+        }
       };
 
       try {
@@ -310,14 +310,35 @@ export const QRScannerView = ({
                 onChange={handleFileUpload}
               />
 
+              {/* Mobile Phone Native Camera Snapshot Input */}
+              <input
+                type="file"
+                ref={mobileCameraInputRef}
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+
               <div className="flex flex-wrap items-center justify-center gap-2.5">
                 <button
                   type="button"
-                  onClick={startCamera}
-                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center gap-2"
+                  onClick={() => mobileCameraInputRef.current?.click()}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center gap-2"
+                  title="Opens phone camera directly to snap pass photo"
                 >
                   <Camera className="w-4 h-4" />
-                  <span>Start Live Camera</span>
+                  <span>📸 Snap with Mobile Camera</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => startCamera()}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition flex items-center gap-2"
+                  title="Stream video feed in browser"
+                >
+                  <RefreshCw className="w-4 h-4 text-cyan-400" />
+                  <span>Live Video Feed</span>
                 </button>
 
                 <button
@@ -325,8 +346,8 @@ export const QRScannerView = ({
                   onClick={() => fileInputRef.current?.click()}
                   className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition flex items-center gap-2"
                 >
-                  <Upload className="w-4 h-4 text-emerald-400" />
-                  <span>Upload QR Image</span>
+                  <Upload className="w-4 h-4 text-purple-400" />
+                  <span>Upload Image</span>
                 </button>
               </div>
             </div>

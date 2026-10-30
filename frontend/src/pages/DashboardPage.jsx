@@ -57,27 +57,20 @@ export const DashboardPage = () => {
         const conflictRes = await api.getConflicts(current.id);
         setConflicts(conflictRes.conflicts || []);
 
-        // 1. Fetch server check-ins
+        // 1. Fetch server check-ins strictly for current event
         let serverCheckIns = [];
         try {
           const checkInRes = await api.getCheckIns(current.id);
           serverCheckIns = checkInRes.checkIns || [];
-          // Resilient fallback: If no check-ins found for specific eventId, query all check-ins
-          if (serverCheckIns.length === 0) {
-            const allCheckInsRes = await api.getCheckIns();
-            if (allCheckInsRes.checkIns && allCheckInsRes.checkIns.length > 0) {
-              serverCheckIns = allCheckInsRes.checkIns;
-            }
-          }
         } catch (e) {
           console.warn('Server check-ins fetch notice:', e.message);
         }
 
-        // 2. Fetch local IndexedDB audit history & local tickets
+        // 2. Fetch local IndexedDB audit history & local tickets strictly for this event
         const localHistory = await offlineDbService.getScanHistory(100);
         const localTickets = await offlineDbService.getAllLocalTickets();
 
-        // 3. Build unified check-in ledger so any scan is immediately visible
+        // 3. Build unified check-in ledger strictly scoped to current event
         const combinedMap = new Map();
 
         // Server check-ins
@@ -86,17 +79,20 @@ export const DashboardPage = () => {
           combinedMap.set(key, ci);
         });
 
-        // Server checked-in tickets fallback
+        // Server checked-in tickets fallback strictly for current event
         try {
-          const allTicketsRes = await api.getTickets();
+          const allTicketsRes = await api.getTickets(current.id);
           if (allTicketsRes.tickets) {
-            allTicketsRes.tickets.filter(t => t.status === 'checked_in').forEach(t => {
+            allTicketsRes.tickets.filter(t => t.eventId === current.id && t.status === 'checked_in').forEach(t => {
               const key = t.ticketNumber;
               if (!combinedMap.has(key)) {
                 combinedMap.set(key, {
                   entryId: 'ci-tkt-' + t.ticketNumber,
                   ticketNumber: t.ticketNumber,
                   attendeeName: t.attendeeName,
+                  phone: t.attendeePhone || '-',
+                  email: t.attendeeEmail || '-',
+                  idNote: t.idNote || '-',
                   tier: t.tier || 'VIP',
                   gateId: t.firstCheckIn?.gateId || 'Gate A',
                   scannedAt: t.firstCheckIn?.scannedAt || t.createdAt,
@@ -108,39 +104,49 @@ export const DashboardPage = () => {
           }
         } catch (e) {}
 
-        // Local scans on this device
-        localHistory.filter(h => h.status === 'valid' || h.status === 'locally_repeated').forEach(h => {
-          const key = h.entryId || (h.ticketNumber + '-' + (h.scannedAt || ''));
-          if (!combinedMap.has(key)) {
-            combinedMap.set(key, {
-              entryId: h.entryId,
-              ticketNumber: h.ticketNumber,
-              attendeeName: h.attendeeName,
-              tier: h.tier || 'VIP',
-              gateId: h.gateId || 'Gate A',
-              scannedAt: h.scannedAt,
-              volunteerName: 'Gate Volunteer Terminal',
-              status: h.status
-            });
-          }
-        });
+        // Local scans on this device strictly for this event
+        localHistory
+          .filter(h => (!h.eventId || h.eventId === current.id) && (h.status === 'valid' || h.status === 'locally_repeated'))
+          .forEach(h => {
+            const key = h.entryId || (h.ticketNumber + '-' + (h.scannedAt || ''));
+            if (!combinedMap.has(key)) {
+              combinedMap.set(key, {
+                entryId: h.entryId,
+                ticketNumber: h.ticketNumber,
+                attendeeName: h.attendeeName,
+                phone: h.phone || '-',
+                email: h.email || '-',
+                idNote: h.idNote || '-',
+                tier: h.tier || 'VIP',
+                gateId: h.gateId || 'Gate A',
+                scannedAt: h.scannedAt,
+                volunteerName: 'Gate Volunteer Terminal',
+                status: h.status
+              });
+            }
+          });
 
-        // Any tickets with status checked_in
-        localTickets.filter(t => t.status === 'checked_in').forEach(t => {
-          const key = t.ticketNumber;
-          if (!combinedMap.has(key)) {
-            combinedMap.set(key, {
-              entryId: 'ci-' + t.ticketNumber,
-              ticketNumber: t.ticketNumber,
-              attendeeName: t.attendeeName,
-              tier: t.tier || 'VIP',
-              gateId: t.firstCheckIn?.gateId || 'Gate A',
-              scannedAt: t.firstCheckIn?.scannedAt || t.lastScannedAt || t.createdAt,
-              volunteerName: t.firstCheckIn?.volunteerName || 'Gate Volunteer',
-              status: 'valid'
-            });
-          }
-        });
+        // Local tickets with status checked_in strictly for this event
+        localTickets
+          .filter(t => t.eventId === current.id && t.status === 'checked_in')
+          .forEach(t => {
+            const key = t.ticketNumber;
+            if (!combinedMap.has(key)) {
+              combinedMap.set(key, {
+                entryId: 'ci-' + t.ticketNumber,
+                ticketNumber: t.ticketNumber,
+                attendeeName: t.attendeeName,
+                phone: t.attendeePhone || '-',
+                email: t.attendeeEmail || '-',
+                idNote: t.idNote || '-',
+                tier: t.tier || 'VIP',
+                gateId: t.firstCheckIn?.gateId || 'Gate A',
+                scannedAt: t.firstCheckIn?.scannedAt || t.lastScannedAt || t.createdAt,
+                volunteerName: t.firstCheckIn?.volunteerName || 'Gate Volunteer',
+                status: 'valid'
+              });
+            }
+          });
 
         setCheckIns(Array.from(combinedMap.values()));
       }

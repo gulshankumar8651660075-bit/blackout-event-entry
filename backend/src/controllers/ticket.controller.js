@@ -6,9 +6,12 @@ const getTickets = async (req, res) => {
     let tickets = [];
     if (eventId) {
       tickets = await DataStore.getTicketsByEvent(eventId);
-    }
-    // Resilient fallback: If no tickets matched specific eventId, return all issued tickets
-    if (!tickets || tickets.length === 0) {
+    } else if (req.user?.role === 'organizer') {
+      const myEvents = await DataStore.getEvents(req.user.id);
+      const myEventIds = myEvents.map(e => e.id);
+      const db = require('../config/db').readLocalDb();
+      tickets = (db.tickets || []).filter(t => myEventIds.includes(t.eventId));
+    } else {
       const db = require('../config/db').readLocalDb();
       tickets = db.tickets || [];
     }
@@ -22,14 +25,14 @@ const createTicket = async (req, res) => {
   try {
     let { eventId, attendeeName, attendeeEmail, tier, ticketNumber } = req.body;
 
-    // Auto-resolve eventId if not provided
+    // Auto-resolve eventId if not provided (strictly scoped to THIS organizer)
     if (!eventId) {
-      const events = await DataStore.getEvents();
+      let events = await DataStore.getEvents(req.user?.id);
       if (events.length > 0) {
         eventId = events[0].id;
       } else {
         const defaultEv = await DataStore.createEvent({
-          title: 'Main Arena Festival 2026',
+          title: `${req.user?.name || 'Organiser'}'s Event`,
           venue: 'Main Arena'
         }, req.user?.id || 'admin');
         eventId = defaultEv.id;

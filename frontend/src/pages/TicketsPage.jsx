@@ -193,24 +193,27 @@ export const TicketsPage = () => {
   const { activeGate, deviceId, user } = useAuth();
   const previewCanvasRef = useRef(null);
 
-  // Load passes with persistent local fallback (IndexedDB + localStorage)
+  // Load passes with persistent local fallback (IndexedDB + localStorage scoped to current user)
   const loadData = async () => {
     try {
+      const userKey = user ? `blackout_passes_${user.id}` : 'blackout_persisted_passes';
       // 1. Instantly load locally saved passes so they NEVER disappear
       const localDexie = await offlineDbService.getAllLocalTickets();
       let localBackup = [];
       try {
-        const raw = localStorage.getItem('blackout_persisted_passes');
+        const raw = localStorage.getItem(userKey);
         if (raw) localBackup = JSON.parse(raw);
       } catch (e) {}
 
       const combinedMap = new Map();
-      [...localDexie, ...localBackup].forEach(t => {
-        if (t && (t.id || t.ticketNumber)) {
-          const key = t.id || t.ticketNumber;
-          combinedMap.set(key, t);
-        }
-      });
+      [...localDexie, ...localBackup]
+        .filter(t => !selectedEventId || t.eventId === selectedEventId)
+        .forEach(t => {
+          if (t && (t.id || t.ticketNumber)) {
+            const key = t.id || t.ticketNumber;
+            combinedMap.set(key, t);
+          }
+        });
 
       if (combinedMap.size > 0) {
         setTickets(Array.from(combinedMap.values()));
@@ -225,13 +228,15 @@ export const TicketsPage = () => {
 
         const tktRes = await api.getTickets(eid);
         if (tktRes.tickets) {
+          // Clear combinedMap of foreign tickets and only set tickets belonging to this event
+          combinedMap.clear();
           tktRes.tickets.forEach(t => {
             const key = t.id || t.ticketNumber;
             combinedMap.set(key, t);
           });
           const merged = Array.from(combinedMap.values());
           setTickets(merged);
-          localStorage.setItem('blackout_persisted_passes', JSON.stringify(merged));
+          localStorage.setItem(userKey, JSON.stringify(merged));
           for (const item of merged) {
             await offlineDbService.saveSingleTicket(item);
           }
@@ -291,12 +296,13 @@ export const TicketsPage = () => {
         await offlineDbService.saveSingleTicket(res.ticket);
         
         let persisted = [];
+        const storageKey = user ? `blackout_passes_${user.id}` : 'blackout_persisted_passes';
         try {
-          const raw = localStorage.getItem('blackout_persisted_passes');
+          const raw = localStorage.getItem(storageKey);
           if (raw) persisted = JSON.parse(raw);
         } catch (e) {}
         persisted.push(res.ticket);
-        localStorage.setItem('blackout_persisted_passes', JSON.stringify(persisted));
+        localStorage.setItem(storageKey, JSON.stringify(persisted));
 
         setTickets(prev => [res.ticket, ...prev.filter(t => t.id !== res.ticket.id)]);
         setShowCreateModal(false);
@@ -336,13 +342,14 @@ export const TicketsPage = () => {
         await offlineDbService.deleteSingleTicket(ticketId, ticketNumber);
 
         // 3. Delete from localStorage
+        const storageKey = user ? `blackout_passes_${user.id}` : 'blackout_persisted_passes';
         let persisted = [];
         try {
-          const raw = localStorage.getItem('blackout_persisted_passes');
+          const raw = localStorage.getItem(storageKey);
           if (raw) persisted = JSON.parse(raw);
         } catch (e) {}
         persisted = persisted.filter(t => t.id !== ticketId && t.ticketNumber !== ticketNumber);
-        localStorage.setItem('blackout_persisted_passes', JSON.stringify(persisted));
+        localStorage.setItem(storageKey, JSON.stringify(persisted));
 
         // 4. Update UI State immediately
         setTickets(prev => prev.filter(t => t.id !== ticketId && t.ticketNumber !== ticketNumber));
@@ -366,6 +373,8 @@ export const TicketsPage = () => {
           try { await api.deleteTicket(t.id); } catch(e) {}
           await offlineDbService.deleteSingleTicket(t.id, t.ticketNumber);
         }
+        const storageKey = user ? `blackout_passes_${user.id}` : 'blackout_persisted_passes';
+        localStorage.removeItem(storageKey);
         localStorage.removeItem('blackout_persisted_passes');
         setTickets([]);
         setActivePreviewTicket(null);
