@@ -181,6 +181,8 @@ export const TicketsPage = () => {
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activePreviewTicket, setActivePreviewTicket] = useState(null);
+  const [showMasterEventQr, setShowMasterEventQr] = useState(false);
+  const [masterQrUrl, setMasterQrUrl] = useState('');
   
   // New ticket form state
   const [formData, setFormData] = useState({
@@ -192,6 +194,27 @@ export const TicketsPage = () => {
 
   const { activeGate, deviceId, user } = useAuth();
   const previewCanvasRef = useRef(null);
+
+  const handleOpenMasterQr = async () => {
+    const currentEv = events.find(e => e.id === selectedEventId) || events[0];
+    if (!currentEv) return;
+    const payload = JSON.stringify({
+      type: 'event_entry',
+      eid: currentEv.id,
+      title: currentEv.title,
+      venue: currentEv.venue,
+      date: currentEv.date
+    });
+    try {
+      const url = await QRCode.toDataURL(payload, {
+        width: 320,
+        margin: 2,
+        color: { dark: '#050813', light: '#ffffff' }
+      });
+      setMasterQrUrl(url);
+      setShowMasterEventQr(true);
+    } catch (e) {}
+  };
 
   // Load passes with persistent local fallback (IndexedDB + localStorage scoped to current user)
   const loadData = async () => {
@@ -493,13 +516,24 @@ export const TicketsPage = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="relative z-10 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center gap-2 self-start md:self-auto group"
-        >
-          <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
-          <span>+ Create Attendee Pass</span>
-        </button>
+        <div className="relative z-10 flex items-center gap-3 flex-wrap">
+          <button
+            onClick={handleOpenMasterQr}
+            className="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 hover:from-emerald-500 hover:to-cyan-400 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center gap-2 ring-2 ring-emerald-500/40"
+            title="Show Master Event QR for Volunteers to scan with phone"
+          >
+            <QrCode className="w-4 h-4 text-white" />
+            <span>📱 Show Event Entry QR</span>
+          </button>
+
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white border border-white/15 text-xs font-bold transition flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+            <span>+ Create Pass</span>
+          </button>
+        </div>
       </div>
 
       {/* Control Bar: Search, Event Switcher & Count */}
@@ -796,6 +830,68 @@ export const TicketsPage = () => {
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Master Event Entry QR Modal */}
+      {showMasterEventQr && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="bg-[#0b101f] border border-emerald-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative space-y-5 text-center">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-2.5 text-left">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                  <QrCode className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-white text-base">Master Event Entry QR</h3>
+                  <p className="text-xs text-slate-400">Scan to register attendee entry</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowMasterEventQr(false)}
+                className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center justify-center p-5 bg-white rounded-3xl shadow-2xl mx-auto w-fit border-4 border-emerald-500/30">
+              {masterQrUrl ? (
+                <img src={masterQrUrl} alt="Event Entry QR" className="w-56 h-56 block rounded-xl" />
+              ) : (
+                <div className="w-56 h-56 bg-slate-100 flex items-center justify-center text-slate-400">
+                  <QrCode className="w-12 h-12" />
+                </div>
+              )}
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 text-xs text-slate-300 text-left space-y-1">
+              <span className="font-bold text-emerald-400">⚡ Single Master QR for Event:</span>
+              <p className="text-[11px] leading-relaxed text-slate-300">
+                Any volunteer or attendee can scan this QR code. Each scan opens the entry form, allows the volunteer to enter their details, and adds them to the live entry ledger.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <a
+                href={masterQrUrl}
+                download="Blackout-Master-Event-QR.png"
+                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download QR PNG</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-semibold border border-white/10 transition flex items-center gap-2"
+              >
+                <Printer className="w-4 h-4 text-slate-300" />
+                <span>Print</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

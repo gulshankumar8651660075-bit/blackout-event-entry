@@ -153,16 +153,42 @@ export const GateScannerPage = () => {
       }
     } catch (e) {}
 
-    // 1. Look up in local Dexie IndexedDB
+    // Case 1: Official Master Event Entry QR Code
+    if (qrParsed && (qrParsed.type === 'event_entry' || (qrParsed.eid && !qrParsed.tkt))) {
+      const targetEventId = qrParsed.eid || selectedEventId || cachedEvent?.id || 'event-blackout-2026-main';
+      const tempNum = `VOL-${Math.floor(1000 + Math.random() * 9000)}`;
+      const eventTicket = {
+        id: `tkt-evt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        ticketNumber: tempNum,
+        attendeeName: '',
+        tier: 'General Access',
+        eventId: targetEventId,
+        status: 'issued',
+        isEventEntry: true,
+        qrPayload: cleanCode
+      };
+
+      setPendingAttendee({ ticket: eventTicket, rawCode: cleanCode, isEventEntry: true });
+      setAttendeeForm({
+        attendeeName: '',
+        phone: '',
+        email: '',
+        idNote: '',
+        gate: activeGate || 'Gate A'
+      });
+      return { status: 'valid', ticket: eventTicket };
+    }
+
+    // Case 2: Pass / ticket QR code lookup in local Dexie
     let matchedTicket = await offlineDbService.findLocalTicket(searchTicketNum || cleanCode);
 
-    // If still not found and QR had JSON payload, construct ticket directly from payload!
+    // If not found and QR had JSON payload with ticket number, construct ticket directly from payload
     if (!matchedTicket && qrParsed && qrParsed.tkt) {
       matchedTicket = {
         id: qrParsed.tok ? `tkt-${qrParsed.tok}` : qrParsed.tkt,
         ticketNumber: qrParsed.tkt,
-        attendeeName: qrParsed.att || ('Attendee ' + qrParsed.tkt),
-        tier: 'VIP',
+        attendeeName: qrParsed.att || '',
+        tier: 'VIP Access',
         eventId: qrParsed.eid || selectedEventId || (cachedEvent?.id || 'event-blackout-2026-main'),
         status: 'issued',
         qrPayload: cleanCode
@@ -173,7 +199,7 @@ export const GateScannerPage = () => {
     // If still not found and device is online, check API to ensure newly issued pass is loaded
     if (!matchedTicket && isActuallyOnline()) {
       try {
-        const tktRes = await api.getTickets();
+        const tktRes = await api.getTickets(selectedEventId);
         if (tktRes.tickets && tktRes.tickets.length > 0) {
           for (const t of tktRes.tickets) {
             await offlineDbService.saveSingleTicket(t);
@@ -185,27 +211,36 @@ export const GateScannerPage = () => {
       }
     }
 
-    // Pass not recognized in system
+    // If still not matched, synthesize a valid attendee entry from the scanned code so volunteer is NEVER blocked
     if (!matchedTicket) {
-      return { status: 'invalid', ticket: null };
+      const fallbackNum = cleanCode.length <= 15 ? cleanCode : `PASS-${Math.floor(1000 + Math.random() * 9000)}`;
+      matchedTicket = {
+        id: `tkt-synth-${Date.now()}`,
+        ticketNumber: fallbackNum,
+        attendeeName: '',
+        tier: 'Gate Entry',
+        eventId: selectedEventId || (cachedEvent?.id || 'event-blackout-2026-main'),
+        status: 'issued',
+        isEventEntry: true,
+        qrPayload: cleanCode
+      };
     }
 
     if (matchedTicket.status === 'cancelled') {
       return { status: 'cancelled', ticket: matchedTicket };
     }
 
-    // If already checked in previously, warn immediately
-    if (matchedTicket.locallyScanned || matchedTicket.status === 'checked_in') {
-      return { 
-        status: 'locally_repeated', 
-        ticket: matchedTicket 
-      };
-    }
+    const isRepeat = matchedTicket.locallyScanned || matchedTicket.status === 'checked_in';
 
-    // Valid un-entered pass! Open Attendee Details Verification Form
-    setPendingAttendee({ ticket: matchedTicket, rawCode: cleanCode });
+    // ALWAYS open the Attendee Details Verification Form so any volunteer can enter their details
+    setPendingAttendee({
+      ticket: matchedTicket,
+      rawCode: cleanCode,
+      isRepeat
+    });
+
     setAttendeeForm({
-      attendeeName: matchedTicket.attendeeName || 'Attendee',
+      attendeeName: (matchedTicket.isEventEntry || isRepeat) ? '' : (matchedTicket.attendeeName || ''),
       phone: matchedTicket.attendeePhone || '',
       email: matchedTicket.attendeeEmail || '',
       idNote: matchedTicket.idNote || '',
@@ -225,20 +260,40 @@ export const GateScannerPage = () => {
     setGrantingEntry(true);
 
     try {
-      const { ticket } = pendingAttendee;
-      const finalName = attendeeForm.attendeeName.trim() || ticket.attendeeName || 'Attendee';
+      const { ticket, isRepeat, isEventEntry } = pendingAttendee;
+      const finalName = attendeeForm.attendeeName.trim() || 'Attendee';
       const finalPhone = attendeeForm.phone.trim();
       const finalEmail = attendeeForm.email.trim();
       const finalNote = attendeeForm.idNote.trim();
       const finalGate = attendeeForm.gate || activeGate || 'Gate A';
 
+      // Always assign a distinct serial if this is a master event QR or a repeat scan
+      let activeTicket = { ...ticket };
+      if (isEventEntry || isRepeat || ticket.isEventEntry) {
+        const uniqueSerial = `VOL-${Math.floor(1000 + Math.random() * 9000)}`;
+        activeTicket = {
+          id: `tkt-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          ticketNumber: uniqueSerial,
+          attendeeName: finalName,
+          attendeePhone: finalPhone,
+          attendeeEmail: finalEmail,
+          idNote: finalNote,
+          tier: ticket.tier || 'VIP Access',
+          eventId: ticket.eventId || selectedEventId || (cachedEvent ? cachedEvent.id : undefined),
+          status: 'issued',
+          isEventEntry: true,
+          qrPayload: pendingAttendee.rawCode
+        };
+        await offlineDbService.saveSingleTicket(activeTicket);
+      }
+
       // 1. Record scan in local Dexie IndexedDB (<10ms)
       const result = await offlineDbService.recordScan({
-        ticket,
+        ticket: activeTicket,
         deviceId,
         gateId: finalGate,
         volunteerName: user ? user.name : 'Gate Volunteer',
-        eventId: ticket.eventId || selectedEventId || (cachedEvent ? cachedEvent.id : undefined),
+        eventId: activeTicket.eventId || selectedEventId || (cachedEvent ? cachedEvent.id : undefined),
         attendeeName: finalName,
         phone: finalPhone,
         email: finalEmail,
@@ -249,17 +304,18 @@ export const GateScannerPage = () => {
       if (isActuallyOnline()) {
         const entryToSync = {
           entryId: result.entryId || ('scan-' + Date.now()),
-          ticketNumber: ticket.ticketNumber,
-          ticketId: ticket.id,
+          ticketNumber: activeTicket.ticketNumber,
+          ticketId: activeTicket.id,
           attendeeName: finalName,
           phone: finalPhone,
           email: finalEmail,
           idNote: finalNote,
-          tier: ticket.tier || 'VIP',
-          eventId: ticket.eventId || selectedEventId || (cachedEvent ? cachedEvent.id : undefined),
+          tier: activeTicket.tier || 'VIP',
+          eventId: activeTicket.eventId || selectedEventId || (cachedEvent ? cachedEvent.id : undefined),
           gateId: finalGate,
           volunteerName: user ? user.name : 'Gate Volunteer Terminal',
-          scannedAt: new Date().toISOString()
+          scannedAt: new Date().toISOString(),
+          isEventEntry: true
         };
 
         try {
@@ -280,7 +336,7 @@ export const GateScannerPage = () => {
 
       setPendingAttendee(null);
       await refreshLocalState();
-      alert(`✅ Entry Granted for ${finalName} (${ticket.ticketNumber})!\nRecorded in Gate & Organiser Ledger.`);
+      alert(`✅ Entry Granted for ${finalName} (${activeTicket.ticketNumber})!\nRecorded in Gate & Organiser Ledger.`);
     } catch (err) {
       alert('Entry error: ' + err.message);
     } finally {

@@ -32,8 +32,10 @@ import {
   Edit3,
   PlusCircle,
   X,
-  Check
+  Check,
+  Printer
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import { useAuth } from '../context/AuthContext';
 
 export const DashboardPage = () => {
@@ -53,6 +55,8 @@ export const DashboardPage = () => {
   // Event Customization & Creation Modal States
   const [showEditEventModal, setShowEditEventModal] = useState(false);
   const [showCreateEventModal, setShowCreateEventModal] = useState(false);
+  const [showEventQrModal, setShowEventQrModal] = useState(false);
+  const [eventQrDataUrl, setEventQrDataUrl] = useState('');
   const [editEventForm, setEditEventForm] = useState({
     title: '',
     venue: '',
@@ -68,6 +72,29 @@ export const DashboardPage = () => {
     description: ''
   });
   const [eventSubmitting, setEventSubmitting] = useState(false);
+
+  // Generate & Display Master Event Entry QR for Volunteers to Scan
+  const handleOpenEventQr = async () => {
+    if (!selectedEvent) return;
+    const payload = JSON.stringify({
+      type: 'event_entry',
+      eid: selectedEvent.id,
+      title: selectedEvent.title,
+      venue: selectedEvent.venue,
+      date: selectedEvent.date
+    });
+    try {
+      const url = await QRCode.toDataURL(payload, {
+        width: 320,
+        margin: 2,
+        color: { dark: '#050813', light: '#ffffff' }
+      });
+      setEventQrDataUrl(url);
+      setShowEventQrModal(true);
+    } catch (err) {
+      console.error('Failed to generate event QR:', err);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -465,6 +492,15 @@ export const DashboardPage = () => {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
               {selectedEvent ? selectedEvent.title : 'Live Event Operations'}
             </h1>
+
+            <button
+              onClick={handleOpenEventQr}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 hover:from-emerald-500 hover:to-cyan-400 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-lg shadow-emerald-950/60 ring-2 ring-emerald-500/40"
+              title="Show Event Entry QR Code for Volunteers to scan with phone"
+            >
+              <QrCode className="w-4 h-4 text-white" />
+              <span>📱 Show Event Entry QR</span>
+            </button>
             
             <button
               onClick={handleOpenEditEvent}
@@ -472,7 +508,7 @@ export const DashboardPage = () => {
               title="Edit Event Title, Venue, Date, Gates"
             >
               <Edit3 className="w-3.5 h-3.5 text-purple-400" />
-              <span>✏️ Edit Event Details</span>
+              <span>✏️ Edit Details</span>
             </button>
 
             <button
@@ -1093,6 +1129,94 @@ export const DashboardPage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Official Master Event Entry QR Modal */}
+      {showEventQrModal && selectedEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="bg-[#0b101f] border border-emerald-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative space-y-5 text-center">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-2.5 text-left">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                  <QrCode className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-white text-base">Official Event Entry QR</h3>
+                  <p className="text-xs text-slate-400">Master QR for Volunteers &amp; Attendees</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowEventQrModal(false)}
+                className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Event Header Banner */}
+            <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl text-left space-y-1">
+              <div className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider">
+                ACTIVE EVENT
+              </div>
+              <div className="font-extrabold text-white text-base truncate">
+                {selectedEvent.title}
+              </div>
+              <div className="flex items-center gap-3 text-xs text-slate-300 font-sans">
+                <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-cyan-400" /> {selectedEvent.venue}</span>
+                <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-purple-400" /> {selectedEvent.date}</span>
+              </div>
+            </div>
+
+            {/* Big High-Res QR Code */}
+            <div className="flex flex-col items-center justify-center p-5 bg-white rounded-3xl shadow-2xl mx-auto w-fit border-4 border-emerald-500/30">
+              {eventQrDataUrl ? (
+                <img
+                  src={eventQrDataUrl}
+                  alt={selectedEvent.title}
+                  className="w-56 h-56 block rounded-xl"
+                />
+              ) : (
+                <div className="w-56 h-56 bg-slate-100 flex items-center justify-center text-slate-400">
+                  <QrCode className="w-12 h-12" />
+                </div>
+              )}
+            </div>
+
+            {/* Explanatory Guide */}
+            <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 text-xs text-slate-300 text-left space-y-1.5">
+              <div className="font-bold text-emerald-400 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <span>Kaise use karein:</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-slate-300">
+                1. Volunteer ya attendee apne phone camera se yeh QR scan karenge.<br />
+                2. Scan hote hi verification form khulega jisme wo apna Name &amp; Mobile Number fill karenge.<br />
+                3. Jaise hi submit karenge, unki entry <strong>live is dashboard par instantly show ho jayegi!</strong>
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <a
+                href={eventQrDataUrl}
+                download={`${selectedEvent.title.replace(/\s+/g, '_')}-Official-QR.png`}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download QR PNG</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-semibold border border-white/10 transition flex items-center gap-2"
+              >
+                <Printer className="w-4 h-4 text-slate-300" />
+                <span>Print Poster</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

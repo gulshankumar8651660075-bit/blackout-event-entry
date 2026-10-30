@@ -262,6 +262,11 @@ class DataStore {
         continue;
       }
 
+      // Check if this is an Event Master QR or a different attendee checking in
+      const isEventQrOrNewAttendee = entry.isEventEntry || 
+        (ticket.ticketNumber && (ticket.ticketNumber.startsWith('EVT-') || ticket.ticketNumber.startsWith('ATT-') || ticket.ticketNumber.startsWith('VOL-'))) ||
+        (entry.attendeeName && lastCheckIn && entry.attendeeName.trim().toLowerCase() !== lastCheckIn.attendeeName?.trim().toLowerCase());
+
       const newCheckIn = {
         entryId,
         ticketId: ticket.id,
@@ -279,7 +284,7 @@ class DataStore {
         scannedAt: scannedAt || new Date().toISOString(),
         syncedAt: new Date().toISOString(),
         offlineSync: true,
-        status: priorCheckInsForTicket.length > 0 ? 'duplicate_conflict' : 'valid'
+        status: (priorCheckInsForTicket.length > 0 && !isEventQrOrNewAttendee) ? 'duplicate_conflict' : 'valid'
       };
 
       // Also enrich ticket with updated contact details if provided
@@ -289,9 +294,9 @@ class DataStore {
 
       db.checkIns.push(newCheckIn);
 
-      if (priorCheckInsForTicket.length > 0) {
+      if (priorCheckInsForTicket.length > 0 && !isEventQrOrNewAttendee) {
         // CONFLICT DETECTED! (Slide 08: One ticket, two offline gates)
-        // Two gates scanned the same ticket while isolated offline
+        // Two gates scanned the exact same attendee ticket while isolated offline
         ticket.status = 'conflict';
         ticket.checkInCount = (ticket.checkInCount || 1) + 1;
 
@@ -328,7 +333,7 @@ class DataStore {
           scannedAt: newCheckIn.scannedAt
         });
       } else {
-        // Valid first-time check-in
+        // Valid entry! (First time check-in OR another attendee checking in with Event QR)
         ticket.status = 'checked_in';
         ticket.firstCheckIn = {
           gateId: newCheckIn.gateId,
@@ -336,7 +341,7 @@ class DataStore {
           volunteerName: newCheckIn.volunteerName,
           deviceId: newCheckIn.deviceId
         };
-        ticket.checkInCount = 1;
+        ticket.checkInCount = (ticket.checkInCount || 0) + 1;
 
         results.accepted.push({
           entryId,
