@@ -67,6 +67,8 @@ export const api = {
   getEvents: () => api.request('/events'),
   getEvent: (id) => api.request(`/events/${id}`),
   createEvent: (data) => api.request('/events', { method: 'POST', body: JSON.stringify(data) }),
+  updateEvent: (id, data) => api.request(`/events/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteEvent: (id) => api.request(`/events/${id}`, { method: 'DELETE' }),
   downloadOfflinePackage: (eventId) => api.request(`/events/${eventId}/download-offline`),
 
   // Tickets

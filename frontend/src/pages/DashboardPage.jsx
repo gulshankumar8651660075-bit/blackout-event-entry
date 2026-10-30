@@ -28,10 +28,16 @@ import {
   Phone,
   Mail,
   FileText,
-  UserCheck
+  UserCheck,
+  Edit3,
+  PlusCircle,
+  X,
+  Check
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export const DashboardPage = () => {
+  const { user } = useAuth();
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [conflicts, setConflicts] = useState([]);
@@ -43,6 +49,25 @@ export const DashboardPage = () => {
   // History search & gate filter
   const [historySearch, setHistorySearch] = useState('');
   const [gateFilter, setGateFilter] = useState('ALL');
+
+  // Event Customization & Creation Modal States
+  const [showEditEventModal, setShowEditEventModal] = useState(false);
+  const [showCreateEventModal, setShowCreateEventModal] = useState(false);
+  const [editEventForm, setEditEventForm] = useState({
+    title: '',
+    venue: '',
+    date: '',
+    gatesText: '',
+    description: ''
+  });
+  const [newEventForm, setNewEventForm] = useState({
+    title: '',
+    venue: '',
+    date: new Date().toISOString().split('T')[0],
+    gatesText: 'Gate 1 - Main Entry, Gate 2 - VIP Access',
+    description: ''
+  });
+  const [eventSubmitting, setEventSubmitting] = useState(false);
 
   const loadData = async () => {
     try {
@@ -106,7 +131,7 @@ export const DashboardPage = () => {
 
         // Local scans on this device strictly for this event
         localHistory
-          .filter(h => (!h.eventId || h.eventId === current.id) && (h.status === 'valid' || h.status === 'locally_repeated'))
+          .filter(h => h.eventId === current.id && (h.status === 'valid' || h.status === 'locally_repeated'))
           .forEach(h => {
             const key = h.entryId || (h.ticketNumber + '-' + (h.scannedAt || ''));
             if (!combinedMap.has(key)) {
@@ -163,6 +188,120 @@ export const DashboardPage = () => {
     const interval = setInterval(loadData, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  // Open Edit Event Modal prefilled with current event
+  const handleOpenEditEvent = () => {
+    if (!selectedEvent) return;
+    setEditEventForm({
+      title: selectedEvent.title || '',
+      venue: selectedEvent.venue || '',
+      date: selectedEvent.date || new Date().toISOString().split('T')[0],
+      gatesText: (selectedEvent.gates || []).join(', '),
+      description: selectedEvent.description || ''
+    });
+    setShowEditEventModal(true);
+  };
+
+  // Save changes to current event
+  const handleSaveEditEvent = async (e) => {
+    e.preventDefault();
+    if (!editEventForm.title.trim()) {
+      alert('Event title cannot be empty.');
+      return;
+    }
+    setEventSubmitting(true);
+    try {
+      const gates = editEventForm.gatesText
+        .split(',')
+        .map(g => g.trim())
+        .filter(Boolean);
+      const payload = {
+        title: editEventForm.title.trim(),
+        venue: editEventForm.venue.trim() || 'Main Venue',
+        date: editEventForm.date || new Date().toISOString().split('T')[0],
+        description: editEventForm.description.trim(),
+        gates: gates.length > 0 ? gates : ['Gate 1 - Main', 'Gate 2 - VIP']
+      };
+      const res = await api.updateEvent(selectedEvent.id, payload);
+      if (res.event) {
+        setSelectedEvent(res.event);
+        setEvents(prev => prev.map(ev => ev.id === res.event.id ? { ...ev, ...res.event } : ev));
+        setShowEditEventModal(false);
+        alert('✅ Event details updated successfully!');
+        await loadData();
+      }
+    } catch (err) {
+      alert('Failed to update event: ' + err.message);
+    } finally {
+      setEventSubmitting(false);
+    }
+  };
+
+  // Create brand new event
+  const handleSaveCreateEvent = async (e) => {
+    e.preventDefault();
+    if (!newEventForm.title.trim()) {
+      alert('Please enter an event title.');
+      return;
+    }
+    setEventSubmitting(true);
+    try {
+      const gates = newEventForm.gatesText
+        .split(',')
+        .map(g => g.trim())
+        .filter(Boolean);
+      const payload = {
+        title: newEventForm.title.trim(),
+        venue: newEventForm.venue.trim() || 'Main Arena',
+        date: newEventForm.date || new Date().toISOString().split('T')[0],
+        description: newEventForm.description.trim(),
+        gates: gates.length > 0 ? gates : ['Gate 1 - Main Entry', 'Gate 2 - VIP Access']
+      };
+      const res = await api.createEvent(payload);
+      if (res.event) {
+        setEvents(prev => [res.event, ...prev]);
+        setSelectedEvent(res.event);
+        setShowCreateEventModal(false);
+        setNewEventForm({
+          title: '',
+          venue: '',
+          date: new Date().toISOString().split('T')[0],
+          gatesText: 'Gate 1 - Main Entry, Gate 2 - VIP Access',
+          description: ''
+        });
+        alert(`🎉 New event "${res.event.title}" created successfully!`);
+        await loadData();
+      }
+    } catch (err) {
+      alert('Failed to create event: ' + err.message);
+    } finally {
+      setEventSubmitting(false);
+    }
+  };
+
+  // Delete current event
+  const handleDeleteCurrentEvent = async () => {
+    if (!selectedEvent) return;
+    if (events.length <= 1) {
+      alert('You need at least one event. Use "Edit Event Details" to customize this event instead of deleting it.');
+      return;
+    }
+    if (window.confirm(`Are you sure you want to delete event "${selectedEvent.title}"? All passes and check-in history for this event will be deleted.`)) {
+      setEventSubmitting(true);
+      try {
+        await api.deleteEvent(selectedEvent.id);
+        const remaining = events.filter(e => e.id !== selectedEvent.id);
+        setEvents(remaining);
+        setSelectedEvent(remaining[0]);
+        alert('✅ Event deleted.');
+        await loadData();
+      } catch (err) {
+        alert('Delete failed: ' + err.message);
+      } finally {
+        setEventSubmitting(false);
+      }
+    }
+  };
 
   const handleResolveConflict = async (conflictId, payload) => {
     await api.resolveConflict(conflictId, payload);
@@ -292,21 +431,86 @@ export const DashboardPage = () => {
         {/* Ambient background glow orb */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-transparent rounded-full blur-3xl pointer-events-none"></div>
 
-        <div className="relative z-10 space-y-1">
-          <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 font-bold tracking-wider uppercase mb-1">
-            <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-400" />
-            <span>Lead Organiser Command Center</span>
+        <div className="relative z-10 space-y-2 max-w-2xl">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 font-bold tracking-wider uppercase">
+              <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-400" />
+              <span>Lead Organiser Command Center</span>
+            </div>
+            
+            {/* Event Switcher Dropdown (if organizer has multiple events) */}
+            {events.length > 1 && (
+              <div className="flex items-center gap-1.5 bg-[#0a0f1e] border border-emerald-500/30 rounded-xl px-2.5 py-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">Event:</span>
+                <select
+                  value={selectedEvent?.id || ''}
+                  onChange={(e) => {
+                    const ev = events.find(x => x.id === e.target.value);
+                    if (ev) setSelectedEvent(ev);
+                  }}
+                  className="bg-transparent text-xs font-mono font-bold text-emerald-400 focus:outline-none cursor-pointer max-w-[200px] truncate"
+                >
+                  {events.map(ev => (
+                    <option key={ev.id} value={ev.id} className="bg-[#0a0f1e] text-white">
+                      {ev.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            {selectedEvent ? selectedEvent.title : 'Live Event Operations'}
-          </h1>
+
+          {/* Event Title + Quick Action Badges */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              {selectedEvent ? selectedEvent.title : 'Live Event Operations'}
+            </h1>
+            
+            <button
+              onClick={handleOpenEditEvent}
+              className="px-3 py-1 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+              title="Edit Event Title, Venue, Date, Gates"
+            >
+              <Edit3 className="w-3.5 h-3.5 text-purple-400" />
+              <span>✏️ Edit Event Details</span>
+            </button>
+
+            <button
+              onClick={() => setShowCreateEventModal(true)}
+              className="px-3 py-1 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+              title="Create a new event"
+            >
+              <PlusCircle className="w-3.5 h-3.5 text-teal-400" />
+              <span>+ New Event</span>
+            </button>
+
+            {events.length > 1 && (
+              <button
+                onClick={handleDeleteCurrentEvent}
+                className="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition"
+                title="Delete this event"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
           {selectedEvent && (
-            <div className="flex items-center gap-4 text-xs text-slate-300 mt-2 flex-wrap font-sans">
-              <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-cyan-400" /> {selectedEvent.venue}</span>
-              <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-purple-400" /> {selectedEvent.date}</span>
-              <span className="text-emerald-400 font-mono font-semibold bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                Active Gates: {selectedEvent.gates?.join(', ')}
+            <div className="flex items-center gap-3 text-xs text-slate-300 pt-1 flex-wrap font-sans">
+              <span className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
+                <MapPin className="w-3.5 h-3.5 text-cyan-400" /> {selectedEvent.venue}
               </span>
+              <span className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
+                <Calendar className="w-3.5 h-3.5 text-purple-400" /> {selectedEvent.date}
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] text-slate-400 uppercase font-mono">Gates:</span>
+                {(selectedEvent.gates || []).map((gate, idx) => (
+                  <span key={idx} className="text-emerald-400 font-mono text-[11px] font-semibold bg-emerald-950/50 px-2 py-0.5 rounded-md border border-emerald-500/30">
+                    {gate}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -676,6 +880,221 @@ export const DashboardPage = () => {
           onClose={() => setActiveConflict(null)}
           onResolve={handleResolveConflict}
         />
+      )}
+
+      {/* Edit Event Details Modal */}
+      {showEditEventModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <div className="bg-[#0b101f] border border-white/15 rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl relative space-y-5">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-white text-base">Edit Event Details</h3>
+                  <p className="text-xs text-slate-400">Update event title, location venue, date, and gate entrances</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowEditEventModal(false)}
+                className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditEvent} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Event Title <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editEventForm.title}
+                  onChange={(e) => setEditEventForm(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="e.g. Tech Carnival 2026 / Hackathon Finale"
+                  className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Venue / Location</label>
+                  <input
+                    type="text"
+                    value={editEventForm.venue}
+                    onChange={(e) => setEditEventForm(prev => ({ ...prev, venue: e.target.value }))}
+                    placeholder="e.g. Auditorium Hall A"
+                    className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Event Date</label>
+                  <input
+                    type="date"
+                    value={editEventForm.date}
+                    onChange={(e) => setEditEventForm(prev => ({ ...prev, date: e.target.value }))}
+                    className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Gate Entrances <span className="text-[10px] text-slate-500">(comma-separated)</span>
+                </label>
+                <input
+                  type="text"
+                  value={editEventForm.gatesText}
+                  onChange={(e) => setEditEventForm(prev => ({ ...prev, gatesText: e.target.value }))}
+                  placeholder="e.g. Gate 1 - North VIP, Gate 2 - Main General, Gate 3 - Fast Track"
+                  className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500 font-mono text-[11px]"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  Volunteers at gates will verify passes under these gate names.
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Short Description (Optional)</label>
+                <textarea
+                  rows="2"
+                  value={editEventForm.description}
+                  onChange={(e) => setEditEventForm(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="e.g. Official offline entry pass verification for hackathon attendees."
+                  className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
+                ></textarea>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setShowEditEventModal(false)}
+                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={eventSubmitting}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-purple-950 transition flex items-center gap-1.5"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{eventSubmitting ? 'Saving...' : 'Save Event Details'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create New Event Modal */}
+      {showCreateEventModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <div className="bg-[#0b101f] border border-white/15 rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl relative space-y-5">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-teal-400">
+                  <PlusCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-white text-base">Create New Event</h3>
+                  <p className="text-xs text-slate-400">Launch a separate event with custom name, venue, and gates</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCreateEventModal(false)}
+                className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCreateEvent} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Event Title <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newEventForm.title}
+                  onChange={(e) => setNewEventForm(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="e.g. Annual Tech Symposium 2026"
+                  className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-teal-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Venue / Location</label>
+                  <input
+                    type="text"
+                    value={newEventForm.venue}
+                    onChange={(e) => setNewEventForm(prev => ({ ...prev, venue: e.target.value }))}
+                    placeholder="e.g. Convention Center Hall 2"
+                    className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-teal-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Event Date</label>
+                  <input
+                    type="date"
+                    value={newEventForm.date}
+                    onChange={(e) => setNewEventForm(prev => ({ ...prev, date: e.target.value }))}
+                    className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-teal-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Gate Entrances <span className="text-[10px] text-slate-500">(comma-separated)</span>
+                </label>
+                <input
+                  type="text"
+                  value={newEventForm.gatesText}
+                  onChange={(e) => setNewEventForm(prev => ({ ...prev, gatesText: e.target.value }))}
+                  placeholder="e.g. Gate 1 - North VIP, Gate 2 - General Entry"
+                  className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-teal-500 font-mono text-[11px]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Short Description (Optional)</label>
+                <textarea
+                  rows="2"
+                  value={newEventForm.description}
+                  onChange={(e) => setNewEventForm(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="e.g. Zero-downtime offline verification event."
+                  className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                ></textarea>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateEventModal(false)}
+                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={eventSubmitting}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white text-xs font-bold shadow-lg shadow-teal-950 transition flex items-center gap-1.5"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>{eventSubmitting ? 'Creating...' : 'Create Event'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

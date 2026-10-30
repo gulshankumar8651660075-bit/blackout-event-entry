@@ -115,6 +115,12 @@ export const QRScannerView = ({
         } catch (e) {}
       }
 
+      // Guarantee clean DOM container to prevent "element is not empty" errors on mobile
+      const containerEl = document.getElementById(scannerId);
+      if (containerEl) {
+        containerEl.innerHTML = '';
+      }
+
       const scanner = new Html5Qrcode(scannerId);
       scannerRef.current = scanner;
 
@@ -133,40 +139,55 @@ export const QRScannerView = ({
       try {
         // Preferred: back camera ("environment") for phone scanning
         await scanner.start(
-          { facingMode: currentFacing },
+          { facingMode: { ideal: currentFacing } },
           config,
           (decodedText) => onQrFrameDetected(decodedText),
           () => {}
         );
         setCameraActive(true);
       } catch (firstErr) {
-        console.warn('FacingMode start error, trying available camera list:', firstErr);
-        const cameras = await Html5Qrcode.getCameras();
-        if (cameras && cameras.length > 0) {
-          const selectedCam = currentFacing === 'environment'
-            ? (cameras.find(c => /back|rear|environment/i.test(c.label)) || cameras[cameras.length - 1])
-            : cameras[0];
+        console.warn('Ideal facingMode error, trying direct facingMode:', firstErr);
+        try {
           await scanner.start(
-            selectedCam.id,
+            { facingMode: currentFacing },
             config,
             (decodedText) => onQrFrameDetected(decodedText),
             () => {}
           );
           setCameraActive(true);
-        } else {
-          // Last resort fallback
-          await scanner.start(
-            { facingMode: 'user' },
-            config,
-            (decodedText) => onQrFrameDetected(decodedText),
-            () => {}
-          );
-          setCameraActive(true);
+        } catch (secondErr) {
+          console.warn('Direct facingMode error, trying camera enumeration:', secondErr);
+          const cameras = await Html5Qrcode.getCameras();
+          if (cameras && cameras.length > 0) {
+            const selectedCam = currentFacing === 'environment'
+              ? (cameras.find(c => /back|rear|environment/i.test(c.label)) || cameras[cameras.length - 1])
+              : cameras[0];
+            await scanner.start(
+              selectedCam.id,
+              config,
+              (decodedText) => onQrFrameDetected(decodedText),
+              () => {}
+            );
+            setCameraActive(true);
+          } else {
+            // Last resort fallback: front/user camera
+            await scanner.start(
+              { facingMode: 'user' },
+              config,
+              (decodedText) => onQrFrameDetected(decodedText),
+              () => {}
+            );
+            setCameraActive(true);
+          }
         }
       }
     } catch (err) {
       console.error('All camera attempts failed:', err);
-      alert('Camera access notice: ' + (err.message || 'Permission denied') + '\n\nTip: Please enable Camera Permission in your mobile browser, or use Upload QR Image / Manual Check-in below.');
+      const isHttp = window.location.protocol === 'http:' && window.location.hostname !== 'localhost';
+      const msg = isHttp
+        ? 'Mobile browsers require HTTPS for live video stream. Please tap "📸 Snap with Mobile Camera" below which works on all mobile phones!'
+        : `Camera notice: ${err.message || 'Permission denied'}.\n\nTip: You can use the "📸 Snap with Mobile Camera" button below, which works instantly without browser permissions!`;
+      alert(msg);
       setCameraActive(false);
     }
   };
@@ -253,8 +274,11 @@ export const QRScannerView = ({
 
   return (
     <div className="w-full max-w-xl mx-auto space-y-4">
-      {/* Hidden container for file scanner */}
-      <div id="blackout-file-scanner-temp" className="hidden"></div>
+      {/* Offscreen container for file & mobile camera snapshot scanner (Must have dimensions, not display:none) */}
+      <div 
+        id="blackout-file-scanner-temp" 
+        style={{ position: 'fixed', top: '-9999px', left: '-9999px', width: '300px', height: '300px', opacity: 0, pointerEvents: 'none' }}
+      ></div>
       
       {/* Scanner Visual Container */}
       <div className="relative rounded-3xl overflow-hidden border border-slate-700/80 bg-slate-950 shadow-2xl">

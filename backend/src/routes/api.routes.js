@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { register, login, getMe, seedDemoAccounts } = require('../controllers/auth.controller');
-const { getEvents, getEventById, createEvent, downloadOfflinePackage } = require('../controllers/event.controller');
+const { getEvents, getEventById, createEvent, updateEvent, deleteEvent, downloadOfflinePackage } = require('../controllers/event.controller');
 const { getTickets, createTicket, deleteTicket, bulkCreateTickets } = require('../controllers/ticket.controller');
 const { syncBatch, getCheckIns, deleteCheckIn, clearCheckIns } = require('../controllers/sync.controller');
 const { getConflicts, resolveConflict } = require('../controllers/conflict.controller');
@@ -18,6 +18,8 @@ router.post('/auth/seed-demo', seedDemoAccounts);
 router.get('/events', verifyToken, getEvents);
 router.get('/events/:id', verifyToken, getEventById);
 router.post('/events', verifyToken, requireRole('organizer'), createEvent);
+router.put('/events/:id', verifyToken, requireRole('organizer'), updateEvent);
+router.delete('/events/:id', verifyToken, requireRole('organizer'), deleteEvent);
 
 // Offline Preparation: Download full ticket manifest for local IndexedDB caching
 router.get('/events/:eventId/download-offline', verifyToken, downloadOfflinePackage);

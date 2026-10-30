@@ -95,9 +95,51 @@ const downloadOfflinePackage = async (req, res) => {
   }
 };
 
+const updateEvent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, date, venue, gates } = req.body;
+
+    const event = await DataStore.getEventById(id);
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    if (req.user && req.user.role === 'organizer' && event.organizerId && event.organizerId !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Access denied: You can only edit your own events.' });
+    }
+
+    const updated = await DataStore.updateEvent(id, { title, description, date, venue, gates });
+    res.json({ success: true, event: updated, message: 'Event details updated successfully.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const deleteEvent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const event = await DataStore.getEventById(id);
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    if (req.user && req.user.role === 'organizer' && event.organizerId && event.organizerId !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Access denied: You can only delete your own events.' });
+    }
+
+    await DataStore.deleteEvent(id);
+    res.json({ success: true, message: 'Event and associated data deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   getEvents,
   getEventById,
   createEvent,
+  updateEvent,
+  deleteEvent,
   downloadOfflinePackage
 };

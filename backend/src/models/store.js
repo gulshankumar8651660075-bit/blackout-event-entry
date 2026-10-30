@@ -85,6 +85,39 @@ class DataStore {
     return newEvent;
   }
 
+  static async updateEvent(id, eventData) {
+    const db = readLocalDb();
+    const idx = db.events.findIndex(e => e.id === id);
+    if (idx === -1) return null;
+
+    db.events[idx] = {
+      ...db.events[idx],
+      title: eventData.title !== undefined ? eventData.title : db.events[idx].title,
+      description: eventData.description !== undefined ? eventData.description : db.events[idx].description,
+      venue: eventData.venue !== undefined ? eventData.venue : db.events[idx].venue,
+      date: eventData.date !== undefined ? eventData.date : db.events[idx].date,
+      gates: eventData.gates && Array.isArray(eventData.gates) && eventData.gates.length > 0
+        ? eventData.gates
+        : db.events[idx].gates,
+      updatedAt: new Date().toISOString()
+    };
+    writeLocalDb(db);
+    return db.events[idx];
+  }
+
+  static async deleteEvent(id) {
+    const db = readLocalDb();
+    const idx = db.events.findIndex(e => e.id === id);
+    if (idx === -1) return false;
+
+    db.events.splice(idx, 1);
+    db.tickets = (db.tickets || []).filter(t => t.eventId !== id);
+    db.checkIns = (db.checkIns || []).filter(c => c.eventId !== id);
+    db.conflicts = (db.conflicts || []).filter(c => c.eventId !== id);
+    writeLocalDb(db);
+    return true;
+  }
+
   // === TICKETS ===
   static async getTicketsByEvent(eventId) {
     const db = readLocalDb();

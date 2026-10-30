@@ -31,7 +31,9 @@ import {
 export const GateScannerPage = () => {
   const { user, activeGate, updateGate, deviceId, switchRole } = useAuth();
   
-  // Offline State
+  // Offline & Event State
+  const [events, setEvents] = useState([]);
+  const [selectedEventId, setSelectedEventId] = useState(() => localStorage.getItem('blackout_volunteer_event_id') || '');
   const [cachedEvent, setCachedEvent] = useState(null);
   const [cachedTicketsCount, setCachedTicketsCount] = useState(0);
   const [availableTickets, setAvailableTickets] = useState([]);
@@ -59,32 +61,33 @@ export const GateScannerPage = () => {
       const ev = await offlineDbService.getCachedEvent();
       let count = await offlineDbService.getCachedTicketsCount();
 
-      // If local Dexie is empty but internet is available, auto-cache tickets seamlessly
-      if (count === 0 && isActuallyOnline()) {
+      // If online, refresh event list and auto-cache tickets for selected event
+      if (isActuallyOnline()) {
         try {
           const eventRes = await api.getEvents();
           if (eventRes.events && eventRes.events.length > 0) {
-            const pkg = await api.downloadOfflinePackage(eventRes.events[0].id);
-            if (pkg.tickets && pkg.tickets.length > 0) {
-              await offlineDbService.saveEventOfflinePackage(pkg.event, pkg.tickets);
-              count = pkg.tickets.length;
+            setEvents(eventRes.events);
+            const activeEid = selectedEventId && eventRes.events.some(e => e.id === selectedEventId)
+              ? selectedEventId
+              : eventRes.events[0].id;
+
+            if (activeEid !== selectedEventId) {
+              setSelectedEventId(activeEid);
+              localStorage.setItem('blackout_volunteer_event_id', activeEid);
+            }
+
+            if (count === 0 || (ev && ev.id !== activeEid)) {
+              const pkg = await api.downloadOfflinePackage(activeEid);
+              if (pkg.tickets && pkg.tickets.length > 0) {
+                await offlineDbService.saveEventOfflinePackage(pkg.event, pkg.tickets);
+                count = pkg.tickets.length;
+              }
             }
           }
         } catch (apiErr) {
           console.warn('Auto cache sync notice:', apiErr.message);
         }
       }
-
-      // Also merge any passes stored in localStorage
-      try {
-        const raw = localStorage.getItem('blackout_persisted_passes');
-        if (raw) {
-          const persisted = JSON.parse(raw);
-          for (const p of persisted) {
-            await offlineDbService.saveSingleTicket(p);
-          }
-        }
-      } catch (e) {}
 
       const allLocal = await offlineDbService.getAllLocalTickets();
       const pending = await offlineDbService.getPendingScans();
@@ -104,29 +107,33 @@ export const GateScannerPage = () => {
     refreshLocalState();
     const interval = setInterval(refreshLocalState, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedEventId]);
 
   // Prepare device - Download event ticket list for offline scanning
   const handleDownloadEventData = async () => {
     setIsDownloading(true);
     try {
-      let eventId = 'event-blackout-2026-main';
+      let eventId = selectedEventId;
       try {
         const eventRes = await api.getEvents();
         if (eventRes.events && eventRes.events.length > 0) {
-          eventId = eventRes.events[0].id;
+          setEvents(eventRes.events);
+          if (!eventId || !eventRes.events.some(e => e.id === eventId)) {
+            eventId = eventRes.events[0].id;
+            setSelectedEventId(eventId);
+          }
         }
       } catch (e) {}
 
-      try {
-        const packageData = await api.downloadOfflinePackage(eventId);
-        await offlineDbService.saveEventOfflinePackage(packageData.event, packageData.tickets);
-      } catch (apiErr) {
-        console.warn('API download fallback to local storage:', apiErr);
+      if (!eventId) {
+        throw new Error('No active event found to cache.');
       }
 
+      const packageData = await api.downloadOfflinePackage(eventId);
+      await offlineDbService.saveEventOfflinePackage(packageData.event, packageData.tickets);
+
       await refreshLocalState();
-      alert(`✅ Device Ready for Offline Entry! Passes cached in browser memory. You can now scan even without internet!`);
+      alert(`✅ Device Ready for Offline Entry for "${packageData.event?.title || 'Event'}"!\n${packageData.tickets?.length || 0} passes cached in browser memory.`);
     } catch (err) {
       alert('Download notice: ' + err.message);
     } finally {
@@ -156,7 +163,7 @@ export const GateScannerPage = () => {
         ticketNumber: qrParsed.tkt,
         attendeeName: qrParsed.att || ('Attendee ' + qrParsed.tkt),
         tier: 'VIP',
-        eventId: qrParsed.eid || (cachedEvent?.id || 'event-blackout-2026-main'),
+        eventId: qrParsed.eid || selectedEventId || (cachedEvent?.id || 'event-blackout-2026-main'),
         status: 'issued',
         qrPayload: cleanCode
       };
@@ -231,7 +238,7 @@ export const GateScannerPage = () => {
         deviceId,
         gateId: finalGate,
         volunteerName: user ? user.name : 'Gate Volunteer',
-        eventId: cachedEvent ? cachedEvent.id : (ticket.eventId || 'event-blackout-2026-main'),
+        eventId: ticket.eventId || selectedEventId || (cachedEvent ? cachedEvent.id : undefined),
         attendeeName: finalName,
         phone: finalPhone,
         email: finalEmail,
@@ -249,7 +256,7 @@ export const GateScannerPage = () => {
           email: finalEmail,
           idNote: finalNote,
           tier: ticket.tier || 'VIP',
-          eventId: ticket.eventId || (cachedEvent?.id || 'event-blackout-2026-main'),
+          eventId: ticket.eventId || selectedEventId || (cachedEvent ? cachedEvent.id : undefined),
           gateId: finalGate,
           volunteerName: user ? user.name : 'Gate Volunteer Terminal',
           scannedAt: new Date().toISOString()
@@ -352,8 +359,39 @@ export const GateScannerPage = () => {
           </p>
         </div>
 
-        {/* Gate Switcher & Offline Download Action */}
+        {/* Event Switcher, Gate Switcher & Offline Download Action */}
         <div className="relative z-10 flex items-center gap-3 flex-wrap">
+          {events.length > 0 && (
+            <div className="bg-[#070b16] border border-white/15 rounded-xl px-3 py-2 flex items-center gap-2">
+              <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase">Event:</span>
+              <select
+                value={selectedEventId}
+                onChange={async (e) => {
+                  const newEid = e.target.value;
+                  setSelectedEventId(newEid);
+                  localStorage.setItem('blackout_volunteer_event_id', newEid);
+                  setIsDownloading(true);
+                  try {
+                    const packageData = await api.downloadOfflinePackage(newEid);
+                    await offlineDbService.saveEventOfflinePackage(packageData.event, packageData.tickets);
+                    await refreshLocalState();
+                  } catch (err) {
+                    console.warn('Auto download error on event change:', err);
+                  } finally {
+                    setIsDownloading(false);
+                  }
+                }}
+                className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer max-w-[170px] truncate"
+              >
+                {events.map(ev => (
+                  <option key={ev.id} value={ev.id} className="bg-[#0e1629]">
+                    {ev.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="bg-[#070b16] border border-white/15 rounded-xl px-3 py-2 flex items-center gap-2">
             <MapPin className="w-4 h-4 text-emerald-400" />
             <select

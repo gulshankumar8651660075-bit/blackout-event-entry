@@ -31,10 +31,10 @@ export const LoginPage = () => {
           throw new Error('Please enter your full name.');
         }
         const res = await api.register({ name: name.trim(), email: email.trim(), password, role });
-        login(res.user, res.token);
+        await login(res.user, res.token);
       } else {
         const res = await api.login({ email: email.trim(), password });
-        login(res.user, res.token);
+        await login(res.user, res.token);
       }
     } catch (err) {
       setError(err.message || 'Invalid email or password.');

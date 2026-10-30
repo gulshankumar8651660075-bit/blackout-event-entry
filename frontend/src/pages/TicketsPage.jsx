@@ -196,51 +196,68 @@ export const TicketsPage = () => {
   // Load passes with persistent local fallback (IndexedDB + localStorage scoped to current user)
   const loadData = async () => {
     try {
-      const userKey = user ? `blackout_passes_${user.id}` : 'blackout_persisted_passes';
-      // 1. Instantly load locally saved passes so they NEVER disappear
-      const localDexie = await offlineDbService.getAllLocalTickets();
-      let localBackup = [];
-      try {
-        const raw = localStorage.getItem(userKey);
-        if (raw) localBackup = JSON.parse(raw);
-      } catch (e) {}
+      // 1. Fetch events for this organizer
+      const evRes = await api.getEvents();
+      const eventList = evRes.events || [];
+      setEvents(eventList);
 
-      const combinedMap = new Map();
-      [...localDexie, ...localBackup]
-        .filter(t => !selectedEventId || t.eventId === selectedEventId)
-        .forEach(t => {
-          if (t && (t.id || t.ticketNumber)) {
-            const key = t.id || t.ticketNumber;
-            combinedMap.set(key, t);
-          }
-        });
-
-      if (combinedMap.size > 0) {
-        setTickets(Array.from(combinedMap.values()));
+      if (eventList.length === 0) {
+        setTickets([]);
+        setLoading(false);
+        return;
       }
 
-      // 2. Fetch fresh updates from API
-      const evRes = await api.getEvents();
-      if (evRes.events && evRes.events.length > 0) {
-        setEvents(evRes.events);
-        const eid = selectedEventId || evRes.events[0].id;
-        setSelectedEventId(eid);
+      const activeEid = selectedEventId && eventList.some(e => e.id === selectedEventId)
+        ? selectedEventId
+        : eventList[0].id;
 
-        const tktRes = await api.getTickets(eid);
-        if (tktRes.tickets) {
-          // Clear combinedMap of foreign tickets and only set tickets belonging to this event
-          combinedMap.clear();
-          tktRes.tickets.forEach(t => {
-            const key = t.id || t.ticketNumber;
-            combinedMap.set(key, t);
-          });
-          const merged = Array.from(combinedMap.values());
-          setTickets(merged);
-          localStorage.setItem(userKey, JSON.stringify(merged));
-          for (const item of merged) {
-            await offlineDbService.saveSingleTicket(item);
-          }
+      if (activeEid !== selectedEventId) {
+        setSelectedEventId(activeEid);
+      }
+
+      const userKey = user ? `blackout_passes_${user.id}_${activeEid}` : `blackout_persisted_${activeEid}`;
+
+      // 2. Fetch fresh updates from API strictly for activeEid
+      const combinedMap = new Map();
+      let serverTickets = [];
+      try {
+        const tktRes = await api.getTickets(activeEid);
+        serverTickets = (tktRes.tickets || []).filter(t => t.eventId === activeEid);
+      } catch (e) {}
+
+      serverTickets.forEach(t => {
+        const key = t.id || t.ticketNumber;
+        combinedMap.set(key, t);
+      });
+
+      // 3. Fallback to local Dexie tickets strictly for this event
+      const localDexie = await offlineDbService.getAllLocalTickets();
+      localDexie
+        .filter(t => t.eventId === activeEid)
+        .forEach(t => {
+          const key = t.id || t.ticketNumber;
+          if (!combinedMap.has(key)) combinedMap.set(key, t);
+        });
+
+      // 4. LocalStorage backup strictly for this event
+      try {
+        const raw = localStorage.getItem(userKey);
+        if (raw) {
+          const localBackup = JSON.parse(raw);
+          localBackup
+            .filter(t => t.eventId === activeEid)
+            .forEach(t => {
+              const key = t.id || t.ticketNumber;
+              if (!combinedMap.has(key)) combinedMap.set(key, t);
+            });
         }
+      } catch (e) {}
+
+      const merged = Array.from(combinedMap.values());
+      setTickets(merged);
+      localStorage.setItem(userKey, JSON.stringify(merged));
+      for (const item of merged) {
+        await offlineDbService.saveSingleTicket(item);
       }
     } catch (err) {
       console.warn('Passes background sync notice:', err);
@@ -485,17 +502,36 @@ export const TicketsPage = () => {
         </button>
       </div>
 
-      {/* Control Bar: Search & Count */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search attendee name or pass serial..."
-            className="w-full bg-[#0a0f1d] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-sans"
-          />
+      {/* Control Bar: Search, Event Switcher & Count */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3 w-full sm:w-auto flex-1">
+          <div className="relative w-full sm:w-80">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search attendee name or pass serial..."
+              className="w-full bg-[#0a0f1d] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-sans"
+            />
+          </div>
+
+          {events.length > 0 && (
+            <div className="hidden md:flex items-center gap-2 bg-[#0a0f1d] border border-white/10 rounded-xl px-3 py-2 shrink-0">
+              <span className="text-[11px] font-mono text-emerald-400 font-bold uppercase tracking-wider">Event:</span>
+              <select
+                value={selectedEventId}
+                onChange={(e) => setSelectedEventId(e.target.value)}
+                className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer max-w-[220px] truncate"
+              >
+                {events.map(ev => (
+                  <option key={ev.id} value={ev.id} className="bg-[#0a0f1d] text-white">
+                    {ev.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">

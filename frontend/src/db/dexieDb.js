@@ -312,6 +312,7 @@ export const offlineDbService = {
     const historyItem = {
       entryId,
       ticketNumber: ticket ? ticket.ticketNumber : 'UNKNOWN',
+      eventId: eventId || ticket?.eventId,
       attendeeName: finalName,
       phone: finalPhone,
       email: finalEmail,
