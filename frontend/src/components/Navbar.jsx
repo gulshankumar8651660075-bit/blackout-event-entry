@@ -10,17 +10,15 @@ import {
   PlayCircle, 
   LogOut, 
   Radio, 
-  ArrowRightLeft,
   ShieldCheck,
-  Smartphone,
-  Crown
+  User
 } from 'lucide-react';
 
 export const Navbar = ({ onSyncTrigger, isSyncing }) => {
-  const { user, logout, activeGate, updateGate, isOrganizer, isVolunteer, switchRole } = useAuth();
+  const { user, logout, activeGate, updateGate, isOrganizer, isVolunteer } = useAuth();
   const location = useLocation();
 
-  // Organiser Navigation (Management & Operations)
+  // Organiser Navigation (Management & Operations only)
   const organiserLinks = [
     { to: '/', label: 'Overview', icon: LayoutDashboard },
     { to: '/tickets', label: 'Passes & QR', icon: QrCode },
@@ -57,7 +55,7 @@ export const Navbar = ({ onSyncTrigger, isSyncing }) => {
                     ? 'bg-gradient-to-r from-purple-900/60 to-indigo-900/60 text-purple-300 border-purple-500/40' 
                     : 'bg-gradient-to-r from-emerald-900/60 to-teal-900/60 text-emerald-300 border-emerald-500/40'
                 }`}>
-                  {isOrganizer ? 'Organiser' : 'Gate Volunteer'}
+                  {isOrganizer ? 'Lead Organiser' : 'Gate Volunteer'}
                 </span>
               </div>
             </Link>
@@ -88,21 +86,7 @@ export const Navbar = ({ onSyncTrigger, isSyncing }) => {
           {/* Right Header Controls */}
           <div className="flex items-center gap-3">
             
-            {/* 1-Click Fast Role Switcher (Easiest testing for judges & users) */}
-            <button
-              onClick={() => switchRole(isOrganizer ? 'volunteer' : 'organizer')}
-              title={isOrganizer ? 'Switch to Volunteer Scanner' : 'Switch to Organiser Portal'}
-              className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 shadow-md ${
-                isOrganizer
-                  ? 'bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border-indigo-500/40 hover:border-indigo-400'
-                  : 'bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border-purple-500/40 hover:border-purple-400'
-              }`}
-            >
-              <ArrowRightLeft className="w-3.5 h-3.5" />
-              <span>{isOrganizer ? 'Test As Volunteer' : 'Switch to Organiser'}</span>
-            </button>
-
-            {/* Gate Selector (Shown for volunteers) */}
+            {/* Gate Selector (Shown for volunteers stationed at gates) */}
             {isVolunteer && (
               <div className="flex items-center gap-1.5 bg-[#0a0f1e] border border-emerald-500/30 rounded-xl px-2.5 py-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Gate:</span>
@@ -120,6 +104,12 @@ export const Navbar = ({ onSyncTrigger, isSyncing }) => {
 
             {/* Offline Blackout Network Badge */}
             <NetworkStatusBadge onSyncTrigger={onSyncTrigger} isSyncing={isSyncing} />
+
+            {/* Authenticated User Badge */}
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-300 font-medium px-2.5 py-1 rounded-xl bg-white/5 border border-white/10">
+              <User className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="truncate max-w-[120px]">{user?.name?.split(' ')[0] || user?.email}</span>
+            </div>
 
             {/* Logout Button */}
             <button

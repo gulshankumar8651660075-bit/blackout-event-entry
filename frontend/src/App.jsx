@@ -67,21 +67,21 @@ const AppContent = () => {
       <Navbar onSyncTrigger={handleGlobalSync} isSyncing={isSyncing} />
       <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-6 pb-12">
         <Routes>
-          {/* Volunteer lands directly on /scanner; cannot view organiser pages */}
+          {/* Volunteer: Strict guard - only has access to /scanner */}
           {isVolunteer ? (
             <>
               <Route path="/scanner" element={<GateScannerPage />} />
               <Route path="*" element={<Navigate to="/scanner" replace />} />
             </>
           ) : (
-            /* Organiser has full management access + can inspect /scanner anytime */
+            /* Organiser: Strict guard - has management pages, cannot view volunteer scanner terminal */
             <>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/dashboard" element={<Navigate to="/" replace />} />
               <Route path="/tickets" element={<TicketsPage />} />
               <Route path="/conflicts" element={<ConflictCenterPage />} />
               <Route path="/demo" element={<DemoGuidePage />} />
-              <Route path="/scanner" element={<GateScannerPage />} />
+              <Route path="/scanner" element={<Navigate to="/tickets" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </>
           )}
