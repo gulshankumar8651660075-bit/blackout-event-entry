@@ -15,11 +15,13 @@ import {
   Smartphone,
   MapPin,
   Radio,
-  FileCheck
+  FileCheck,
+  ShieldCheck,
+  Zap
 } from 'lucide-react';
 
 export const GateScannerPage = () => {
-  const { user, activeGate, updateGate, deviceId } = useAuth();
+  const { user, activeGate, updateGate, deviceId, switchRole } = useAuth();
   
   // Offline State
   const [cachedEvent, setCachedEvent] = useState(null);
@@ -54,12 +56,23 @@ export const GateScannerPage = () => {
         }
       }
 
+      // Also merge any passes stored in localStorage
+      try {
+        const raw = localStorage.getItem('blackout_persisted_passes');
+        if (raw) {
+          const persisted = JSON.parse(raw);
+          for (const p of persisted) {
+            await offlineDbService.saveSingleTicket(p);
+          }
+        }
+      } catch (e) {}
+
       const allLocal = await offlineDbService.getAllLocalTickets();
       const pending = await offlineDbService.getPendingScans();
-      const history = await offlineDbService.getScanHistory(15);
+      const history = await offlineDbService.getScanHistory(20);
 
       setCachedEvent(ev);
-      setCachedTicketsCount(count);
+      setCachedTicketsCount(allLocal.length);
       setAvailableTickets(allLocal);
       setPendingScans(pending);
       setScanHistory(history);
@@ -74,11 +87,11 @@ export const GateScannerPage = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Slide 03 Step 01: Prepare device - Download event ticket list
+  // Prepare device - Download event ticket list for offline scanning
   const handleDownloadEventData = async () => {
     setIsDownloading(true);
     try {
-      let eventId = 'demo-event-blackout-2026';
+      let eventId = 'event-blackout-2026-main';
       try {
         const eventRes = await api.getEvents();
         if (eventRes.events && eventRes.events.length > 0) {
@@ -86,17 +99,15 @@ export const GateScannerPage = () => {
         }
       } catch (e) {}
 
-      // Download offline package from API
       try {
         const packageData = await api.downloadOfflinePackage(eventId);
         await offlineDbService.saveEventOfflinePackage(packageData.event, packageData.tickets);
       } catch (apiErr) {
-        console.warn('API download failed, ensuring baseline tickets:', apiErr);
-        await offlineDbService.ensureBaselineData();
+        console.warn('API download fallback to local storage:', apiErr);
       }
 
       await refreshLocalState();
-      alert(`✅ Device Prepared! Tickets cached in device IndexedDB. You can now scan offline!`);
+      alert(`✅ Device Ready for Offline Entry! Passes cached in browser memory. You can now scan even without internet!`);
     } catch (err) {
       alert('Download notice: ' + err.message);
     } finally {
@@ -104,7 +115,7 @@ export const GateScannerPage = () => {
     }
   };
 
-  // Slide 03 Step 02 & 03: Verify Locally & Save Entry
+  // Verify Locally (<10ms) & Save Entry & Background Sync if Online
   const handleScanCode = async (rawCode) => {
     // 1. Look up in local Dexie IndexedDB
     let matchedTicket = await offlineDbService.findLocalTicket(rawCode);
@@ -131,23 +142,44 @@ export const GateScannerPage = () => {
       deviceId,
       gateId: activeGate,
       volunteerName: user ? user.name : 'Gate Volunteer',
-      eventId: cachedEvent ? cachedEvent.id : (matchedTicket ? matchedTicket.eventId : 'demo-event-blackout-2026')
+      eventId: cachedEvent ? cachedEvent.id : (matchedTicket ? matchedTicket.eventId : 'event-blackout-2026-main')
     });
+
+    // 3. If online, background sync immediately so Organiser dashboard sees entry live
+    if (isActuallyOnline() && matchedTicket) {
+      api.syncBatch({
+        deviceId,
+        gateId: activeGate,
+        entries: [{
+          entryId: result.entryId || ('scan-' + Date.now()),
+          ticketNumber: matchedTicket.ticketNumber,
+          ticketId: matchedTicket.id,
+          eventId: matchedTicket.eventId,
+          gateId: activeGate,
+          volunteerName: user ? user.name : 'Gate Volunteer',
+          scannedAt: new Date().toISOString()
+        }]
+      }).then(() => {
+        offlineDbService.markScansSynced([result.entryId]).catch(() => {});
+      }).catch(err => {
+        console.warn('Background sync queued for reconnection:', err.message);
+      });
+    }
 
     await refreshLocalState();
     return result;
   };
 
-  // Slide 03 Step 04 & Slide 07: Sync Pending Entries
+  // Sync Pending Entries Batch
   const handleSyncEntries = async () => {
     if (!isActuallyOnline()) {
-      alert('⚠️ Cannot sync while offline. Reconnect or disable simulated blackout to upload pending entries.');
+      alert('⚠️ Cannot sync while offline. Reconnect or turn off Simulated Blackout to upload pending entries.');
       return;
     }
 
     const pending = await offlineDbService.getPendingScans();
     if (pending.length === 0) {
-      alert('ℹ️ No pending scans to sync.');
+      alert('ℹ️ All scans are already synced with the cloud!');
       return;
     }
 
@@ -163,7 +195,6 @@ export const GateScannerPage = () => {
 
       const res = await api.syncBatch(payload);
 
-      // Slide 07: Mark entries as synced
       const syncedIds = pending.map(p => p.entryId);
       await offlineDbService.markScansSynced(syncedIds);
       await offlineDbService.purgeSyncedScans();
@@ -175,14 +206,14 @@ export const GateScannerPage = () => {
         details: res.results
       });
     } catch (err) {
-      alert('Sync failed: ' + err.message);
+      alert('Sync notice: ' + err.message);
     } finally {
       setIsSyncing(false);
     }
   };
 
   const handleResetLocalDb = async () => {
-    if (window.confirm('Reset local device cache? Baseline demo tickets will be reloaded.')) {
+    if (window.confirm('Reset local device cache?')) {
       await offlineDbService.resetAll();
       await refreshLocalState();
     }
@@ -192,45 +223,46 @@ export const GateScannerPage = () => {
     <div className="space-y-8 max-w-7xl mx-auto pb-16">
       
       {/* Top Banner */}
-      <div className="glass-panel p-6 rounded-3xl border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-5 shadow-2xl relative overflow-hidden">
+        
+        <div className="space-y-1 relative z-10">
           <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 font-bold tracking-wider uppercase mb-1">
-            <Radio className="w-3.5 h-3.5 animate-pulse" />
-            <span>Slide 05 &amp; 06: Gate Scanner Interface</span>
+            <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-400" />
+            <span>Gate Scanner Terminal &bull; Volunteer Station</span>
           </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
             <span>{activeGate} Terminal</span>
-            <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
-              ID: {deviceId}
+            <span className="text-xs font-mono px-3 py-1 rounded-full bg-white/10 border border-white/15 text-slate-300 font-normal">
+              Device: {deviceId}
             </span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Validates QR codes in &lt;10ms completely offline using local browser IndexedDB storage.
+            Validates QR codes in &lt;10ms completely offline using device IndexedDB storage.
           </p>
         </div>
 
         {/* Gate Switcher & Offline Download Action */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 flex items-center gap-2">
+        <div className="relative z-10 flex items-center gap-3 flex-wrap">
+          <div className="bg-[#070b16] border border-white/15 rounded-xl px-3 py-2 flex items-center gap-2">
             <MapPin className="w-4 h-4 text-emerald-400" />
             <select
               value={activeGate}
               onChange={(e) => updateGate(e.target.value)}
               className="bg-transparent text-xs font-mono font-bold text-white focus:outline-none cursor-pointer"
             >
-              <option value="Gate A" className="bg-slate-900">Gate A (North VIP)</option>
-              <option value="Gate B" className="bg-slate-900">Gate B (South General)</option>
-              <option value="Gate C" className="bg-slate-900">Gate C (Fast Track)</option>
+              <option value="Gate A" className="bg-[#0e1629]">Gate A (North VIP)</option>
+              <option value="Gate B" className="bg-[#0e1629]">Gate B (South General)</option>
+              <option value="Gate C" className="bg-[#0e1629]">Gate C (Fast Track)</option>
             </select>
           </div>
 
           <button
             onClick={handleDownloadEventData}
             disabled={isDownloading}
-            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center gap-2"
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 disabled:opacity-50 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center gap-2"
           >
             <DownloadCloud className={`w-4 h-4 ${isDownloading ? 'animate-bounce' : ''}`} />
-            <span>{isDownloading ? 'Refreshing...' : '1. Refresh Cache'}</span>
+            <span>{isDownloading ? 'Syncing...' : '1. Refresh Cache'}</span>
           </button>
 
           <button
@@ -239,57 +271,59 @@ export const GateScannerPage = () => {
             className={`px-4 py-2.5 rounded-xl text-white text-xs font-bold transition flex items-center gap-2 ${
               pendingScans.length > 0
                 ? 'bg-amber-600 hover:bg-amber-500 shadow-lg shadow-amber-950 animate-pulse'
-                : 'bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700'
+                : 'bg-white/5 text-slate-400 cursor-not-allowed border border-white/10'
             }`}
           >
             <CloudUpload className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            <span>{isSyncing ? 'Syncing...' : `2. Sync Queue (${pendingScans.length})`}</span>
+            <span>{isSyncing ? 'Uploading...' : `2. Sync Queue (${pendingScans.length})`}</span>
           </button>
         </div>
       </div>
 
-      {/* Offline Readiness Indicators (Slide 05) */}
+      {/* Offline Status Indicators */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="glass-card p-4 rounded-2xl border border-slate-800 flex items-center gap-3">
+        <div className="glass-card p-4 rounded-2xl border border-white/10 flex items-center gap-3">
           <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
             <Layers className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-[11px] font-mono text-slate-400 uppercase">Local Database Status</span>
-            <div className="text-sm font-bold text-white">
-              {cachedTicketsCount > 0 ? `${cachedTicketsCount} Passes Ready Offline` : '5 Passes Cached'}
+            <span className="text-[11px] font-mono text-slate-400 uppercase">Device Offline Cache</span>
+            <div className="text-lg font-extrabold text-white">
+              {cachedTicketsCount} Passes Cached
             </div>
-            <p className="text-[11px] text-slate-400">
-              {cachedEvent ? cachedEvent.title : 'Electric Horizon Festival'}
-            </p>
+            <p className="text-[11px] text-emerald-400 font-mono">Ready for 0ms offline lookup</p>
           </div>
         </div>
 
-        <div className="glass-card p-4 rounded-2xl border border-slate-800 flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+        <div className="glass-card p-4 rounded-2xl border border-white/10 flex items-center gap-3">
+          <div className={`p-3 rounded-xl border ${
+            pendingScans.length > 0
+              ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+          }`}>
             <Clock className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-[11px] font-mono text-slate-400 uppercase">Pending Sync Queue</span>
-            <div className="text-sm font-bold text-amber-300">
-              {pendingScans.length} Scans Queued
+            <span className="text-[11px] font-mono text-slate-400 uppercase">Unsynced Queue</span>
+            <div className="text-lg font-extrabold text-white">
+              {pendingScans.length} Entries Queued
             </div>
             <p className="text-[11px] text-slate-400">
-              {pendingScans.length > 0 ? 'Will upload when internet returns' : 'All local scans synced'}
+              {pendingScans.length > 0 ? 'Will sync automatically' : 'All local scans synced'}
             </p>
           </div>
         </div>
 
-        <div className="glass-card p-4 rounded-2xl border border-slate-800 flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+        <div className="glass-card p-4 rounded-2xl border border-white/10 flex items-center gap-3">
+          <div className="p-3 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
             <Smartphone className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-[11px] font-mono text-slate-400 uppercase">Volunteer Terminal</span>
-            <div className="text-sm font-bold text-white">
-              {user ? user.name : 'Volunteer Terminal'}
+            <span className="text-[11px] font-mono text-slate-400 uppercase">Volunteer Station</span>
+            <div className="text-sm font-bold text-white truncate max-w-[160px]">
+              {user ? user.name : 'Alex Volunteer'}
             </div>
-            <p className="text-[11px] text-slate-400">Stationed at {activeGate}</p>
+            <p className="text-[11px] text-slate-400">Active at {activeGate}</p>
           </div>
         </div>
       </div>
@@ -307,11 +341,6 @@ export const GateScannerPage = () => {
             {syncFeedback.type === 'warning' ? <AlertTriangle className="w-5 h-5 text-amber-400" /> : <CheckCircle className="w-5 h-5 text-emerald-400" />}
             <span>{syncFeedback.message}</span>
           </div>
-          {syncFeedback.details?.conflictsCreated?.length > 0 && (
-            <div className="mt-2 text-xs font-mono text-amber-300 bg-black/40 p-2.5 rounded-lg border border-amber-500/20">
-              ⚠️ Slide 08 Conflict Triggered! {syncFeedback.details.conflictsCreated.length} ticket was scanned across multiple gates. Head to the Conflict Center to review!
-            </div>
-          )}
         </div>
       )}
 
@@ -329,61 +358,73 @@ export const GateScannerPage = () => {
         </div>
 
         {/* Right Column: Local Device Scan Stream */}
-        <div className="lg:col-span-5 glass-panel p-5 rounded-3xl border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="lg:col-span-5 glass-panel p-6 rounded-3xl border border-white/10 space-y-4 shadow-xl">
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
             <div className="flex items-center gap-2">
               <FileCheck className="w-4 h-4 text-emerald-400" />
-              <h3 className="font-bold text-sm text-white">Local Device Audit Feed</h3>
+              <h3 className="font-bold text-sm text-white">Local Gate Audit Log</h3>
             </div>
             <button
               onClick={handleResetLocalDb}
-              className="text-[11px] text-slate-500 hover:text-rose-400 flex items-center gap-1 transition"
+              className="text-[11px] text-slate-400 hover:text-rose-400 flex items-center gap-1 transition"
               title="Reset cache"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Reset Local Cache</span>
+              <span>Clear Cache</span>
             </button>
           </div>
 
           {scanHistory.length === 0 ? (
-            <div className="py-12 text-center text-slate-500 text-xs">
+            <div className="py-14 text-center text-slate-500 text-xs">
               No scans recorded on this device yet.
               <br />
               Click any 1-Click test button or aim camera to begin!
             </div>
           ) : (
-            <div className="space-y-2.5 max-h-[480px] overflow-y-auto pr-1">
+            <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
               {scanHistory.map((item) => (
                 <div
-                  key={item.id}
-                  className={`p-3 rounded-xl border text-xs flex items-center justify-between ${
+                  key={item.entryId || item.id}
+                  className={`p-3 rounded-xl border text-xs transition flex items-center justify-between ${
                     item.status === 'valid'
-                      ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-300'
+                      ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-200'
                       : item.status === 'locally_repeated'
-                      ? 'bg-amber-950/30 border-amber-500/30 text-amber-300'
-                      : 'bg-rose-950/30 border-rose-500/30 text-rose-300'
+                      ? 'bg-amber-950/40 border-amber-500/30 text-amber-200'
+                      : 'bg-rose-950/40 border-rose-500/30 text-rose-200'
                   }`}
                 >
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-white">{item.ticketNumber}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/40 font-mono">
-                        {item.status.toUpperCase()}
+                      <span className="font-mono font-bold text-white text-sm">{item.attendeeName}</span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/40 text-slate-300">
+                        {item.ticketNumber}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-0.5">{item.attendeeName} ({item.tier})</p>
+                    <div className="text-[11px] text-slate-400 mt-0.5">
+                      <span>Gate: {item.gateId}</span> &bull; <span>{item.tier || 'VIP'}</span>
+                    </div>
                   </div>
 
-                  <div className="text-right font-mono text-[10px] text-slate-400">
-                    <div>{new Date(item.scannedAt).toLocaleTimeString()}</div>
-                    <div className="text-slate-500">{item.gateId}</div>
+                  <div className="text-right">
+                    <span className={`inline-block text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                      item.status === 'valid'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                    }`}>
+                      {item.status === 'valid' ? 'GRANTED' : 'REPEATED'}
+                    </span>
+                    <div className="text-[10px] font-mono text-slate-400 mt-1">
+                      {new Date(item.scannedAt).toLocaleTimeString()}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
+
       </div>
+
     </div>
   );
 };

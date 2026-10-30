@@ -4,7 +4,14 @@
 
 @layer base {
   body {
-    @apply bg-[#060911] text-slate-100 overflow-x-hidden;
+    background-color: #070b16;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.12) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.1) 0px, transparent 50%);
+    color: #f1f5f9;
+    overflow-x: hidden;
+    min-height: 100vh;
   }
 }
 
@@ -15,11 +22,11 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0a0f1d;
+  background: #090e1c;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e2c4f;
+  background: #1e293b;
   border-radius: 9999px;
 }
 
@@ -27,11 +34,11 @@
   background: #10b981;
 }
 
-/* Scanner targeting overlay */
+/* Scanner targeting overlay with neon laser animation */
 .scanner-frame {
   position: relative;
   overflow: hidden;
-  box-shadow: 0 0 25px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 0 35px rgba(16, 185, 129, 0.2);
 }
 
 .scanner-frame::before {
@@ -41,22 +48,77 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, transparent, #10b981, #34d399, transparent);
-  box-shadow: 0 0 15px #10b981;
-  animation: scan 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  background: linear-gradient(90deg, transparent, #10b981, #00f5a0, transparent);
+  box-shadow: 0 0 18px #10b981, 0 0 8px #00f5a0;
+  animation: scan 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   z-index: 10;
 }
 
-/* Glassmorphism utility */
+/* Modern Cyber-Fintech Glassmorphism panels */
 .glass-panel {
-  background: rgba(14, 22, 41, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.82) 0%, rgba(10, 16, 31, 0.88) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
 }
 
 .glass-card {
-  background: rgba(19, 30, 56, 0.5);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: linear-gradient(135deg, rgba(19, 29, 54, 0.7) 0%, rgba(13, 20, 38, 0.75) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.35);
+}
+
+.glass-card:hover {
+  border-color: rgba(16, 185, 129, 0.35);
+  box-shadow: 0 12px 32px 0 rgba(16, 185, 129, 0.12);
+}
+
+/* Glowing Neon utility classes */
+.glow-emerald {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.35);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.35);
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(147, 51, 234, 0.35);
+}
+
+/* Realistic Event Pass Notch Styling */
+.ticket-notch-left {
+  position: relative;
+}
+.ticket-notch-left::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  background-color: #070b16;
+  border-radius: 9999px;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 10;
+}
+.ticket-notch-right {
+  position: relative;
+}
+.ticket-notch-right::after {
+  content: '';
+  position: absolute;
+  right: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  background-color: #070b16;
+  border-radius: 9999px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 10;
 }
