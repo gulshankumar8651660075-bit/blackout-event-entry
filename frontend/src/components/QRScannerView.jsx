@@ -14,7 +14,8 @@ import {
   Zap, 
   Upload, 
   X,
-  UserCheck
+  UserCheck,
+  ArrowRight
 } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
@@ -29,11 +30,18 @@ export const QRScannerView = ({
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [lastScanResult, setLastScanResult] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Camera & Debounce Guard Refs
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const isLockedRef = useRef(false);
+  const lastScannedCodeRef = useRef('');
+  const lastScannedTimeRef = useRef(0);
+  const resumeTimeoutRef = useRef(null);
   const scannerId = 'blackout-qr-reader';
 
   const stopCamera = async () => {
+    if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
     if (scannerRef.current) {
       try {
         await scannerRef.current.stop();
@@ -44,11 +52,60 @@ export const QRScannerView = ({
       scannerRef.current = null;
     }
     setCameraActive(false);
+    isLockedRef.current = false;
+  };
+
+  // Safe frame handler with synchronous debouncing & pause
+  const onQrFrameDetected = async (decodedText) => {
+    const clean = String(decodedText || '').trim();
+    if (!clean) return;
+
+    const now = Date.now();
+    // 1. Synchronous Guard: Lock if another scan is in flight
+    if (isLockedRef.current) return;
+
+    // 2. Debounce: If the same code was scanned in the last 4 seconds, ignore repeated frames!
+    if (clean === lastScannedCodeRef.current && (now - lastScannedTimeRef.current < 4000)) {
+      return;
+    }
+
+    // Set locks immediately
+    isLockedRef.current = true;
+    lastScannedCodeRef.current = clean;
+    lastScannedTimeRef.current = now;
+
+    // 3. Pause video frame processing so camera doesn't keep hammering at 10fps
+    try {
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.pause(true);
+      }
+    } catch (e) {
+      console.warn('Camera pause notice:', e);
+    }
+
+    try {
+      await handleScanTrigger(clean);
+    } finally {
+      // Clear any prior resume timeout
+      if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+
+      // Auto-unlock camera analysis after 3 seconds so volunteer can scan next attendee
+      resumeTimeoutRef.current = setTimeout(() => {
+        isLockedRef.current = false;
+        try {
+          if (scannerRef.current) {
+            scannerRef.current.resume();
+          }
+        } catch (e) {}
+      }, 3000);
+    }
   };
 
   const startCamera = async () => {
     try {
       setLastScanResult(null);
+      isLockedRef.current = false;
+      lastScannedCodeRef.current = '';
       if (scannerRef.current) {
         try {
           await scannerRef.current.stop();
@@ -78,7 +135,7 @@ export const QRScannerView = ({
           qrbox: { width: 250, height: 250 },
         },
         async (decodedText) => {
-          handleScanTrigger(decodedText);
+          onQrFrameDetected(decodedText);
         },
         () => {}
       );
@@ -91,7 +148,7 @@ export const QRScannerView = ({
         await fallbackScanner.start(
           { facingMode: 'user' },
           { fps: 10, qrbox: { width: 250, height: 250 } },
-          async (decodedText) => { handleScanTrigger(decodedText); },
+          async (decodedText) => { onQrFrameDetected(decodedText); },
           () => {}
         );
         setCameraActive(true);
@@ -128,14 +185,13 @@ export const QRScannerView = ({
   }, []);
 
   const handleScanTrigger = async (rawCode) => {
-    if (isProcessing) return;
     setIsProcessing(true);
 
     try {
       const result = await onScanCode(rawCode);
       setLastScanResult(result);
 
-      if (audioEnabled) {
+      if (audioEnabled && result) {
         if (result.status === 'valid') {
           sounds.playSuccess();
           confetti({
@@ -152,9 +208,7 @@ export const QRScannerView = ({
     } catch (err) {
       console.error('Scan error:', err);
     } finally {
-      setTimeout(() => {
-        setIsProcessing(false);
-      }, 1000);
+      setIsProcessing(false);
     }
   };
 
@@ -163,6 +217,18 @@ export const QRScannerView = ({
     if (!manualCode.trim()) return;
     handleScanTrigger(manualCode.trim());
     setManualCode('');
+  };
+
+  const handleNextScan = () => {
+    if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+    setLastScanResult(null);
+    isLockedRef.current = false;
+    lastScannedCodeRef.current = '';
+    try {
+      if (scannerRef.current) {
+        scannerRef.current.resume();
+      }
+    } catch (e) {}
   };
 
   return (
@@ -350,9 +416,9 @@ export const QRScannerView = ({
                   {lastScanResult.status === 'invalid' && '❌ UNRECOGNIZED / INVALID PASS'}
                 </span>
                 <button
-                  onClick={() => setLastScanResult(null)}
+                  onClick={handleNextScan}
                   className="p-1 rounded-lg text-slate-400 hover:text-white"
-                  title="Dismiss"
+                  title="Dismiss & Scan Next"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -387,10 +453,11 @@ export const QRScannerView = ({
                   Speed: &lt;10ms (IndexedDB Instant Verify)
                 </span>
                 <button
-                  onClick={() => setLastScanResult(null)}
-                  className="px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition font-mono"
+                  onClick={handleNextScan}
+                  className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition font-mono flex items-center gap-1.5 shadow-md shadow-emerald-950"
                 >
-                  Ready for Next Scan →
+                  <span>Ready for Next Scan</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>

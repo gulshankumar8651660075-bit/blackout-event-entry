@@ -58,6 +58,13 @@ export const DashboardPage = () => {
         try {
           const checkInRes = await api.getCheckIns(current.id);
           serverCheckIns = checkInRes.checkIns || [];
+          // Resilient fallback: If no check-ins found for specific eventId, query all check-ins
+          if (serverCheckIns.length === 0) {
+            const allCheckInsRes = await api.getCheckIns();
+            if (allCheckInsRes.checkIns && allCheckInsRes.checkIns.length > 0) {
+              serverCheckIns = allCheckInsRes.checkIns;
+            }
+          }
         } catch (e) {
           console.warn('Server check-ins fetch notice:', e.message);
         }
@@ -71,13 +78,35 @@ export const DashboardPage = () => {
 
         // Server check-ins
         serverCheckIns.forEach(ci => {
-          const key = ci.entryId || ci.ticketNumber;
+          const key = ci.entryId || (ci.ticketNumber + '-' + (ci.scannedAt || ''));
           combinedMap.set(key, ci);
         });
 
+        // Server checked-in tickets fallback
+        try {
+          const allTicketsRes = await api.getTickets();
+          if (allTicketsRes.tickets) {
+            allTicketsRes.tickets.filter(t => t.status === 'checked_in').forEach(t => {
+              const key = t.ticketNumber;
+              if (!combinedMap.has(key)) {
+                combinedMap.set(key, {
+                  entryId: 'ci-tkt-' + t.ticketNumber,
+                  ticketNumber: t.ticketNumber,
+                  attendeeName: t.attendeeName,
+                  tier: t.tier || 'VIP',
+                  gateId: t.firstCheckIn?.gateId || 'Gate A',
+                  scannedAt: t.firstCheckIn?.scannedAt || t.createdAt,
+                  volunteerName: t.firstCheckIn?.volunteerName || 'Gate Volunteer Terminal',
+                  status: 'valid'
+                });
+              }
+            });
+          }
+        } catch (e) {}
+
         // Local scans on this device
         localHistory.filter(h => h.status === 'valid' || h.status === 'locally_repeated').forEach(h => {
-          const key = h.entryId || h.ticketNumber;
+          const key = h.entryId || (h.ticketNumber + '-' + (h.scannedAt || ''));
           if (!combinedMap.has(key)) {
             combinedMap.set(key, {
               entryId: h.entryId,

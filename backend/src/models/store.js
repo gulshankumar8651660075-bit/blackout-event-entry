@@ -181,28 +181,61 @@ class DataStore {
         continue;
       }
 
-      // Find the associated ticket in database
-      const ticket = db.tickets.find(t => 
-        t.ticketNumber === ticketNumber || 
-        t.id === ticketId || 
-        t.qrPayload.includes(ticketNumber)
-      );
+      // Find the associated ticket in database (case-insensitive & safe against undefined qrPayload)
+      let ticket = db.tickets.find(t => {
+        const numMatch = ticketNumber && t.ticketNumber && t.ticketNumber.toUpperCase() === String(ticketNumber).toUpperCase();
+        const idMatch = ticketId && t.id === ticketId;
+        const payloadMatch = typeof t.qrPayload === 'string' && ticketNumber && t.qrPayload.includes(String(ticketNumber));
+        return numMatch || idMatch || payloadMatch;
+      });
 
+      // Resilient: If ticket was created on client or another instance, auto-register it so scan is NEVER lost
       if (!ticket) {
-        results.invalid.push({ entry, reason: 'Ticket not found in event database' });
-        continue;
+        ticket = {
+          id: ticketId || uuidv4(),
+          ticketNumber: ticketNumber || `TKT-${Math.floor(1000 + Math.random() * 9000)}`,
+          attendeeName: entry.attendeeName || 'Attendee',
+          attendeeEmail: '',
+          tier: entry.tier || 'VIP',
+          eventId: eventId || (db.events[0]?.id || 'event-blackout-2026-main'),
+          status: 'issued',
+          qrPayload: '',
+          firstCheckIn: null,
+          checkInCount: 0,
+          createdAt: new Date().toISOString()
+        };
+        db.tickets.push(ticket);
       }
 
       // Check 2: Has this ticket already been checked in by ANY gate/device?
-      const priorCheckInsForTicket = db.checkIns.filter(c => c.ticketNumber === ticket.ticketNumber);
+      const priorCheckInsForTicket = db.checkIns.filter(c => 
+        (c.ticketNumber && ticket.ticketNumber && c.ticketNumber.toUpperCase() === ticket.ticketNumber.toUpperCase()) ||
+        (c.ticketId && ticket.id && c.ticketId === ticket.id)
+      );
+
+      // Check 2.1: Rapid camera frame repetition protection (< 5 seconds at same gate)
+      const lastCheckIn = priorCheckInsForTicket[priorCheckInsForTicket.length - 1];
+      const isRapidRepeatedScan = lastCheckIn && 
+        lastCheckIn.gateId === (gateId || 'Gate A') &&
+        (new Date(scannedAt || Date.now()).getTime() - new Date(lastCheckIn.scannedAt).getTime() < 5000);
+
+      if (isRapidRepeatedScan) {
+        // Idempotent ignore of rapid camera frame repetition
+        results.ignoredDuplicates.push({
+          entryId,
+          ticketNumber: ticket.ticketNumber,
+          message: 'Ignored rapid camera frame repeated scan (<5s)'
+        });
+        continue;
+      }
 
       const newCheckIn = {
         entryId,
         ticketId: ticket.id,
         ticketNumber: ticket.ticketNumber,
-        attendeeName: ticket.attendeeName,
-        tier: ticket.tier || 'General',
-        eventId: ticket.eventId,
+        attendeeName: entry.attendeeName || ticket.attendeeName || 'Attendee',
+        tier: entry.tier || ticket.tier || 'VIP',
+        eventId: ticket.eventId || eventId || 'event-blackout-2026-main',
         deviceId: deviceId || deviceMeta.deviceId || 'Unknown Device',
         gateId: gateId || 'Gate A',
         volunteerName: volunteerName || 'Gate Volunteer',

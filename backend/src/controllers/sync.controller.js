@@ -63,11 +63,14 @@ const getCheckIns = async (req, res) => {
     // Enrich check-in entries with attendee name and tier from tickets manifest
     const tickets = db.tickets || [];
     checkIns = checkIns.map(ci => {
-      const t = tickets.find(ticket => ticket.ticketNumber === ci.ticketNumber || ticket.id === ci.ticketId);
+      const t = tickets.find(ticket => 
+        (ticket.ticketNumber && ci.ticketNumber && ticket.ticketNumber.toUpperCase() === ci.ticketNumber.toUpperCase()) ||
+        (ticket.id && ci.ticketId && ticket.id === ci.ticketId)
+      );
       return {
         ...ci,
         attendeeName: ci.attendeeName || t?.attendeeName || 'Attendee',
-        tier: ci.tier || t?.tier || 'General'
+        tier: ci.tier || t?.tier || 'VIP'
       };
     });
 
