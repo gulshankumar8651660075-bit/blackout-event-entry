@@ -60,7 +60,7 @@ const getCheckIns = async (req, res) => {
       }
     }
 
-    // Enrich check-in entries with attendee name and tier from tickets manifest
+    // Enrich check-in entries with attendee name, phone, email, and tier from tickets manifest
     const tickets = db.tickets || [];
     checkIns = checkIns.map(ci => {
       const t = tickets.find(ticket => 
@@ -70,6 +70,9 @@ const getCheckIns = async (req, res) => {
       return {
         ...ci,
         attendeeName: ci.attendeeName || t?.attendeeName || 'Attendee',
+        phone: ci.phone || t?.attendeePhone || '-',
+        email: ci.email || t?.attendeeEmail || '-',
+        idNote: ci.idNote || t?.idNote || '-',
         tier: ci.tier || t?.tier || 'VIP'
       };
     });
@@ -84,23 +87,42 @@ const deleteCheckIn = async (req, res) => {
   try {
     const { id } = req.params;
     const db = require('../config/db').readLocalDb();
-    const idx = (db.checkIns || []).findIndex(c => c.entryId === id || c.id === id || c.ticketNumber === id);
-    if (idx !== -1) {
-      const removed = db.checkIns.splice(idx, 1)[0];
-      // Reset ticket status if no more checkIns
-      const ticket = (db.tickets || []).find(t => t.ticketNumber === removed.ticketNumber || t.id === removed.ticketId);
-      if (ticket) {
-        const remaining = (db.checkIns || []).filter(c => c.ticketNumber === ticket.ticketNumber);
-        if (remaining.length === 0) {
-          ticket.status = 'issued';
-          ticket.firstCheckIn = null;
-          ticket.checkInCount = 0;
-        }
+    const searchKey = String(id || '').trim().toUpperCase();
+
+    // 1. Remove all matching checkIns
+    const beforeCount = (db.checkIns || []).length;
+    db.checkIns = (db.checkIns || []).filter(c => {
+      const matchesEntryId = c.entryId && c.entryId.toUpperCase() === searchKey;
+      const matchesTicketNum = c.ticketNumber && c.ticketNumber.toUpperCase() === searchKey;
+      const matchesId = c.id && c.id.toUpperCase() === searchKey;
+      return !matchesEntryId && !matchesTicketNum && !matchesId;
+    });
+
+    // 2. Remove matching conflicts
+    db.conflicts = (db.conflicts || []).filter(c => {
+      const matchesTicket = c.ticketNumber && c.ticketNumber.toUpperCase() === searchKey;
+      const matchesId = c.id && c.id.toUpperCase() === searchKey;
+      return !matchesTicket && !matchesId;
+    });
+
+    // 3. Reset ticket status in db.tickets
+    (db.tickets || []).forEach(t => {
+      if (
+        (t.ticketNumber && t.ticketNumber.toUpperCase() === searchKey) ||
+        (t.id && t.id.toUpperCase() === searchKey)
+      ) {
+        t.status = 'issued';
+        t.firstCheckIn = null;
+        t.checkInCount = 0;
       }
-      require('../config/db').writeLocalDb(db);
-      return res.json({ success: true, message: 'Check-in entry removed successfully' });
-    }
-    res.status(404).json({ success: false, message: 'Check-in not found' });
+    });
+
+    require('../config/db').writeLocalDb(db);
+    return res.json({ 
+      success: true, 
+      message: 'Check-in entry removed successfully',
+      removedCount: beforeCount - db.checkIns.length 
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

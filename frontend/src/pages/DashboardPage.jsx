@@ -24,7 +24,11 @@ import {
   QrCode,
   ScanLine,
   ArrowRight,
-  Trash2
+  Trash2,
+  Phone,
+  Mail,
+  FileText,
+  UserCheck
 } from 'lucide-react';
 
 export const DashboardPage = () => {
@@ -165,11 +169,14 @@ export const DashboardPage = () => {
       alert('No check-in entries to export yet.');
       return;
     }
-    const headers = ['Attendee Name', 'Pass Serial', 'Tier', 'Gate', 'Check-in Time', 'Verified Status', 'Volunteer'];
+    const headers = ['Attendee Name', 'Mobile Phone', 'Email Address', 'ID Proof / Note', 'Pass Serial', 'Tier', 'Gate', 'Check-in Time', 'Verified Status', 'Volunteer'];
     const rows = checkIns.map(ci => [
       `"${ci.attendeeName || 'Attendee'}"`,
+      `"${ci.phone || '-'}"`,
+      `"${ci.email || '-'}"`,
+      `"${ci.idNote || '-'}"`,
       `"${ci.ticketNumber || '-'}"`,
-      `"${ci.tier || 'General'}"`,
+      `"${ci.tier || 'VIP'}"`,
       `"${ci.gateId || 'Gate A'}"`,
       `"${new Date(ci.scannedAt).toLocaleString()}"`,
       `"${ci.status === 'valid' ? 'Entry Granted' : 'Repeated Entry'}"`,
@@ -186,16 +193,37 @@ export const DashboardPage = () => {
     document.body.removeChild(link);
   };
 
-  // Delete individual check-in entry
+  // Delete individual check-in entry permanently
   const handleDeleteCheckIn = async (entryId, ticketNumber) => {
     if (window.confirm(`Delete check-in history record for pass ${ticketNumber || entryId}?`)) {
       try {
+        // 1. Delete from Server
         try {
-          await api.deleteCheckIn(entryId);
+          if (entryId) await api.deleteCheckIn(entryId);
+          if (ticketNumber && ticketNumber !== entryId) await api.deleteCheckIn(ticketNumber);
         } catch (apiErr) {
           console.warn('API delete checkin fallback notice:', apiErr.message);
         }
+
+        // 2. Delete from local IndexedDB and reset pass status
         await offlineDbService.deleteScanHistoryItem(entryId, ticketNumber);
+
+        // 3. Reset in localStorage persisted passes
+        try {
+          const raw = localStorage.getItem('blackout_persisted_passes');
+          if (raw) {
+            let passes = JSON.parse(raw);
+            passes = passes.map(p => {
+              if (p.ticketNumber === ticketNumber || p.id === ticketNumber) {
+                return { ...p, status: 'issued', firstCheckIn: null, checkInCount: 0, locallyScanned: false };
+              }
+              return p;
+            });
+            localStorage.setItem('blackout_persisted_passes', JSON.stringify(passes));
+          }
+        } catch (e) {}
+
+        // 4. Update UI State immediately
         setCheckIns(prev => prev.filter(c => c.entryId !== entryId && c.ticketNumber !== ticketNumber));
         await loadData();
         alert('✅ Entry history record removed.');
@@ -205,7 +233,7 @@ export const DashboardPage = () => {
     }
   };
 
-  // Clear all check-in history
+  // Clear all check-in history permanently
   const handleClearAllHistory = async () => {
     if (checkIns.length === 0) return;
     if (window.confirm(`Clear all ${checkIns.length} attendee check-in records? This will reset the check-in count for this event.`)) {
@@ -215,7 +243,18 @@ export const DashboardPage = () => {
         } catch (apiErr) {
           console.warn('API clear checkins fallback notice:', apiErr.message);
         }
+
         await offlineDbService.clearAllScanHistory();
+
+        try {
+          const raw = localStorage.getItem('blackout_persisted_passes');
+          if (raw) {
+            let passes = JSON.parse(raw);
+            passes = passes.map(p => ({ ...p, status: 'issued', firstCheckIn: null, checkInCount: 0, locallyScanned: false }));
+            localStorage.setItem('blackout_persisted_passes', JSON.stringify(passes));
+          }
+        } catch (e) {}
+
         setCheckIns([]);
         await loadData();
         alert('✅ All attendee entry history cleared.');
@@ -548,12 +587,28 @@ export const DashboardPage = () => {
                     <tr key={ci.entryId || (ci.ticketNumber + '-' + index)} className="hover:bg-white/[0.04] transition-colors">
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center font-bold text-xs shadow-sm shrink-0">
                             {initial}
                           </div>
                           <div>
                             <div className="font-bold text-white text-sm">{ci.attendeeName || 'Attendee'}</div>
-                            <span className="text-[10px] text-slate-400 font-mono">Verified Attendee</span>
+                            <div className="flex items-center gap-2.5 mt-0.5 text-[11px] text-slate-400 font-mono flex-wrap">
+                              {ci.phone && ci.phone !== '-' && (
+                                <span className="flex items-center gap-1 text-cyan-300 font-semibold">
+                                  <Phone className="w-3 h-3 text-cyan-400" /> {ci.phone}
+                                </span>
+                              )}
+                              {ci.email && ci.email !== '-' && (
+                                <span className="flex items-center gap-1 text-purple-300">
+                                  <Mail className="w-3 h-3 text-purple-400" /> {ci.email}
+                                </span>
+                              )}
+                            </div>
+                            {ci.idNote && ci.idNote !== '-' && (
+                              <span className="inline-block mt-1 text-[10px] text-amber-300 font-sans bg-amber-950/40 px-2 py-0.5 rounded-md border border-amber-500/20">
+                                {ci.idNote}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </td>

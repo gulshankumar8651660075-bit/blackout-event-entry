@@ -26,6 +26,7 @@ export const QRScannerView = ({
   availableTickets = []
 }) => {
   const [cameraActive, setCameraActive] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState('environment'); // default to 'environment' for mobile rear camera
   const [manualCode, setManualCode] = useState('');
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [lastScanResult, setLastScanResult] = useState(null);
@@ -101,7 +102,7 @@ export const QRScannerView = ({
     }
   };
 
-  const startCamera = async () => {
+  const startCamera = async (overrideFacing) => {
     try {
       setLastScanResult(null);
       isLockedRef.current = false;
@@ -116,47 +117,66 @@ export const QRScannerView = ({
       const scanner = new Html5Qrcode(scannerId);
       scannerRef.current = scanner;
 
-      // Smart camera selection: check available cameras or fallback to user camera
-      let cameraConfig = { facingMode: 'user' };
-      try {
-        const cameras = await Html5Qrcode.getCameras();
-        if (cameras && cameras.length > 0) {
-          const backCam = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('rear'));
-          cameraConfig = backCam ? backCam.id : cameras[0].id;
-        }
-      } catch (camErr) {
-        console.warn('Camera enumeration fallback:', camErr);
-      }
+      const currentFacing = overrideFacing || cameraFacing;
 
-      await scanner.start(
-        cameraConfig,
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
+      // Dynamic mobile viewport sizing
+      const config = {
+        fps: 10,
+        qrbox: (viewfinderWidth, viewfinderHeight) => {
+          const minDimension = Math.min(viewfinderWidth, viewfinderHeight);
+          const size = Math.max(180, Math.floor(minDimension * 0.72));
+          return { width: size, height: size };
         },
-        async (decodedText) => {
-          onQrFrameDetected(decodedText);
-        },
-        () => {}
-      );
-      setCameraActive(true);
-    } catch (err) {
-      console.warn('Primary camera start failed, retrying with basic constraints:', err);
+        aspectRatio: 1.0,
+      };
+
       try {
-        const fallbackScanner = new Html5Qrcode(scannerId);
-        scannerRef.current = fallbackScanner;
-        await fallbackScanner.start(
-          { facingMode: 'user' },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          async (decodedText) => { onQrFrameDetected(decodedText); },
+        // Preferred: back camera ("environment") for phone scanning
+        await scanner.start(
+          { facingMode: currentFacing },
+          config,
+          (decodedText) => onQrFrameDetected(decodedText),
           () => {}
         );
         setCameraActive(true);
-      } catch (err2) {
-        console.error('All camera attempts failed:', err2);
-        alert('Webcam / Camera not accessible: ' + err2.message + '\n\nDon\'t worry! You can use the 1-Click Test Scan buttons below or Upload QR Image to test.');
-        setCameraActive(false);
+      } catch (firstErr) {
+        console.warn('FacingMode start error, trying available camera list:', firstErr);
+        const cameras = await Html5Qrcode.getCameras();
+        if (cameras && cameras.length > 0) {
+          const selectedCam = currentFacing === 'environment'
+            ? (cameras.find(c => /back|rear|environment/i.test(c.label)) || cameras[cameras.length - 1])
+            : cameras[0];
+          await scanner.start(
+            selectedCam.id,
+            config,
+            (decodedText) => onQrFrameDetected(decodedText),
+            () => {}
+          );
+          setCameraActive(true);
+        } else {
+          // Last resort fallback
+          await scanner.start(
+            { facingMode: 'user' },
+            config,
+            (decodedText) => onQrFrameDetected(decodedText),
+            () => {}
+          );
+          setCameraActive(true);
+        }
       }
+    } catch (err) {
+      console.error('All camera attempts failed:', err);
+      alert('Camera access notice: ' + (err.message || 'Permission denied') + '\n\nTip: Please enable Camera Permission in your mobile browser, or use Upload QR Image / Manual Check-in below.');
+      setCameraActive(false);
+    }
+  };
+
+  const toggleCameraFacing = async () => {
+    const nextFacing = cameraFacing === 'environment' ? 'user' : 'environment';
+    setCameraFacing(nextFacing);
+    if (cameraActive) {
+      await stopCamera();
+      setTimeout(() => startCamera(nextFacing), 300);
     }
   };
 
@@ -248,6 +268,15 @@ export const QRScannerView = ({
 
           <div className="flex items-center gap-2">
             <button
+              onClick={toggleCameraFacing}
+              className="px-2.5 py-1 rounded-lg bg-black/60 text-slate-300 hover:text-white border border-slate-700/50 flex items-center gap-1.5 text-[11px] font-mono transition"
+              title="Flip Rear/Front Camera on Mobile"
+            >
+              <RefreshCw className="w-3 h-3 text-cyan-400" />
+              <span>{cameraFacing === 'environment' ? 'Rear' : 'Front'}</span>
+            </button>
+
+            <button
               onClick={() => setAudioEnabled(!audioEnabled)}
               className="p-1.5 rounded-lg bg-black/60 text-slate-300 hover:text-white border border-slate-700/50"
               title={audioEnabled ? 'Mute Sound' : 'Enable Sound'}
@@ -307,14 +336,26 @@ export const QRScannerView = ({
         {/* Scanner Control Bar */}
         {cameraActive && (
           <div className="p-3 bg-slate-900/90 border-t border-slate-800 flex items-center justify-between">
-            <span className="text-xs font-mono text-slate-400">Aim reticle at attendee QR code</span>
-            <button
-              onClick={stopCamera}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5"
-            >
-              <CameraOff className="w-3.5 h-3.5" />
-              <span>Pause Camera</span>
-            </button>
+            <span className="text-xs font-mono text-slate-400">Aim camera at attendee pass</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleCameraFacing}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-semibold flex items-center gap-1.5 transition"
+                title="Switch between front and back camera"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Switch Camera</span>
+              </button>
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5"
+              >
+                <CameraOff className="w-3.5 h-3.5" />
+                <span>Pause</span>
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -234,6 +234,9 @@ class DataStore {
         ticketId: ticket.id,
         ticketNumber: ticket.ticketNumber,
         attendeeName: entry.attendeeName || ticket.attendeeName || 'Attendee',
+        phone: entry.phone || ticket.attendeePhone || '',
+        email: entry.email || ticket.attendeeEmail || '',
+        idNote: entry.idNote || '',
         tier: entry.tier || ticket.tier || 'VIP',
         eventId: ticket.eventId || eventId || 'event-blackout-2026-main',
         deviceId: deviceId || deviceMeta.deviceId || 'Unknown Device',
@@ -245,6 +248,11 @@ class DataStore {
         offlineSync: true,
         status: priorCheckInsForTicket.length > 0 ? 'duplicate_conflict' : 'valid'
       };
+
+      // Also enrich ticket with updated contact details if provided
+      if (entry.phone) ticket.attendeePhone = entry.phone;
+      if (entry.email) ticket.attendeeEmail = entry.email;
+      if (entry.attendeeName) ticket.attendeeName = entry.attendeeName;
 
       db.checkIns.push(newCheckIn);
 

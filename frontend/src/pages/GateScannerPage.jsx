@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { offlineDbService } from '../db/dexieDb';
 import { api, isActuallyOnline } from '../utils/api';
 import { QRScannerView } from '../components/QRScannerView';
+import confetti from 'canvas-confetti';
+import { sounds } from '../utils/audio';
 import { 
   DownloadCloud, 
   CloudUpload, 
@@ -17,7 +19,13 @@ import {
   Radio,
   FileCheck,
   ShieldCheck,
-  Zap
+  Zap,
+  UserCheck,
+  Phone,
+  Mail,
+  FileText,
+  X,
+  ArrowRight
 } from 'lucide-react';
 
 export const GateScannerPage = () => {
@@ -32,6 +40,17 @@ export const GateScannerPage = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState(null);
+
+  // Attendee Verification Form State (Pop-up after pass scan)
+  const [pendingAttendee, setPendingAttendee] = useState(null);
+  const [attendeeForm, setAttendeeForm] = useState({
+    attendeeName: '',
+    phone: '',
+    email: '',
+    idNote: '',
+    gate: 'Gate A'
+  });
+  const [grantingEntry, setGrantingEntry] = useState(false);
 
   // Load offline state from Dexie.js
   const refreshLocalState = async () => {
@@ -115,7 +134,7 @@ export const GateScannerPage = () => {
     }
   };
 
-  // Verify Locally (<10ms) & Save Entry & Background Sync if Online
+  // Verify Locally (<10ms) & Trigger Verification Form
   const handleScanCode = async (rawCode) => {
     let cleanCode = String(rawCode || '').trim();
     let qrParsed = null;
@@ -159,43 +178,107 @@ export const GateScannerPage = () => {
       }
     }
 
-    // 2. Record scan in local Dexie pending queue
-    const result = await offlineDbService.recordScan({
-      ticket: matchedTicket,
-      deviceId,
-      gateId: activeGate,
-      volunteerName: user ? user.name : 'Gate Volunteer',
-      eventId: cachedEvent ? cachedEvent.id : (matchedTicket ? matchedTicket.eventId : 'event-blackout-2026-main')
-    });
-
-    // 3. If online, background sync immediately so Organiser dashboard sees entry live
-    if (isActuallyOnline()) {
-      const entryToSync = {
-        entryId: result.entryId || ('scan-' + Date.now()),
-        ticketNumber: matchedTicket ? matchedTicket.ticketNumber : searchTicketNum,
-        ticketId: matchedTicket ? matchedTicket.id : undefined,
-        attendeeName: matchedTicket ? matchedTicket.attendeeName : 'Attendee',
-        tier: matchedTicket ? matchedTicket.tier : 'VIP',
-        eventId: matchedTicket ? matchedTicket.eventId : (cachedEvent?.id || 'event-blackout-2026-main'),
-        gateId: activeGate || 'Gate A',
-        volunteerName: user ? user.name : 'Gate Volunteer Terminal',
-        scannedAt: new Date().toISOString()
-      };
-
-      try {
-        await api.syncBatch({
-          deviceId,
-          gateId: activeGate || 'Gate A',
-          entries: [entryToSync]
-        });
-        await offlineDbService.markScansSynced([result.entryId]);
-      } catch (syncErr) {
-        console.warn('Background sync queued for reconnection:', syncErr.message);
-      }
+    // Pass not recognized in system
+    if (!matchedTicket) {
+      return { status: 'invalid', ticket: null };
     }
 
-    await refreshLocalState();
-    return result;
+    if (matchedTicket.status === 'cancelled') {
+      return { status: 'cancelled', ticket: matchedTicket };
+    }
+
+    // If already checked in previously, warn immediately
+    if (matchedTicket.locallyScanned || matchedTicket.status === 'checked_in') {
+      return { 
+        status: 'locally_repeated', 
+        ticket: matchedTicket 
+      };
+    }
+
+    // Valid un-entered pass! Open Attendee Details Verification Form
+    setPendingAttendee({ ticket: matchedTicket, rawCode: cleanCode });
+    setAttendeeForm({
+      attendeeName: matchedTicket.attendeeName || 'Attendee',
+      phone: matchedTicket.attendeePhone || '',
+      email: matchedTicket.attendeeEmail || '',
+      idNote: matchedTicket.idNote || '',
+      gate: activeGate || 'Gate A'
+    });
+
+    return { 
+      status: 'valid', 
+      ticket: matchedTicket 
+    };
+  };
+
+  // Submit and finalize attendee entry after volunteer checks / fills form
+  const handleConfirmEntry = async (e) => {
+    if (e) e.preventDefault();
+    if (!pendingAttendee) return;
+    setGrantingEntry(true);
+
+    try {
+      const { ticket } = pendingAttendee;
+      const finalName = attendeeForm.attendeeName.trim() || ticket.attendeeName || 'Attendee';
+      const finalPhone = attendeeForm.phone.trim();
+      const finalEmail = attendeeForm.email.trim();
+      const finalNote = attendeeForm.idNote.trim();
+      const finalGate = attendeeForm.gate || activeGate || 'Gate A';
+
+      // 1. Record scan in local Dexie IndexedDB (<10ms)
+      const result = await offlineDbService.recordScan({
+        ticket,
+        deviceId,
+        gateId: finalGate,
+        volunteerName: user ? user.name : 'Gate Volunteer',
+        eventId: cachedEvent ? cachedEvent.id : (ticket.eventId || 'event-blackout-2026-main'),
+        attendeeName: finalName,
+        phone: finalPhone,
+        email: finalEmail,
+        idNote: finalNote
+      });
+
+      // 2. Immediate cloud sync if online so Organiser sees entry live with all details
+      if (isActuallyOnline()) {
+        const entryToSync = {
+          entryId: result.entryId || ('scan-' + Date.now()),
+          ticketNumber: ticket.ticketNumber,
+          ticketId: ticket.id,
+          attendeeName: finalName,
+          phone: finalPhone,
+          email: finalEmail,
+          idNote: finalNote,
+          tier: ticket.tier || 'VIP',
+          eventId: ticket.eventId || (cachedEvent?.id || 'event-blackout-2026-main'),
+          gateId: finalGate,
+          volunteerName: user ? user.name : 'Gate Volunteer Terminal',
+          scannedAt: new Date().toISOString()
+        };
+
+        try {
+          await api.syncBatch({
+            deviceId,
+            gateId: finalGate,
+            entries: [entryToSync]
+          });
+          await offlineDbService.markScansSynced([result.entryId]);
+        } catch (syncErr) {
+          console.warn('Background sync queued for reconnection:', syncErr.message);
+        }
+      }
+
+      // 3. Audio & Confetti
+      sounds.playSuccess();
+      confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+
+      setPendingAttendee(null);
+      await refreshLocalState();
+      alert(`✅ Entry Granted for ${finalName} (${ticket.ticketNumber})!\nRecorded in Gate & Organiser Ledger.`);
+    } catch (err) {
+      alert('Entry error: ' + err.message);
+    } finally {
+      setGrantingEntry(false);
+    }
   };
 
   // Sync Pending Entries Batch
@@ -452,6 +535,148 @@ export const GateScannerPage = () => {
         </div>
 
       </div>
+
+      {/* ATTENDEE DETAILS VERIFICATION & CHECK-IN FORM MODAL */}
+      {pendingAttendee && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="glass-panel w-full max-w-lg p-6 sm:p-8 rounded-3xl border border-emerald-500/40 bg-[#070b16] shadow-2xl space-y-6 relative overflow-hidden">
+            
+            {/* Top ambient glow */}
+            <div className="absolute top-0 right-0 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold shadow-lg shadow-emerald-950">
+                  <UserCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-mono uppercase text-emerald-400 font-bold tracking-widest flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>PASS VERIFIED • FILL ATTENDEE DETAILS</span>
+                  </div>
+                  <h3 className="text-xl font-extrabold text-white">
+                    Confirm Attendee Entry
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPendingAttendee(null)}
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Pass badge preview */}
+            <div className="p-3.5 bg-black/50 rounded-2xl border border-white/10 flex items-center justify-between font-mono text-xs relative z-10">
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase">Pass Serial</span>
+                <span className="text-emerald-400 font-black text-sm">{pendingAttendee.ticket.ticketNumber}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase">Access Tier</span>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs border border-emerald-500/30">
+                  {pendingAttendee.ticket.tier || 'VIP'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase">Gate Terminal</span>
+                <span className="text-cyan-400 font-bold text-xs">{activeGate || 'Gate A'}</span>
+              </div>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleConfirmEntry} className="space-y-4 text-xs font-sans relative z-10">
+              <div>
+                <label className="block text-slate-300 font-bold mb-1.5 flex items-center gap-1.5">
+                  <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Attendee Full Name *</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={attendeeForm.attendeeName}
+                  onChange={(e) => setAttendeeForm({ ...attendeeForm, attendeeName: e.target.value })}
+                  placeholder="e.g. Gulshan Kumar"
+                  className="w-full bg-[#0d1527] border border-white/15 rounded-xl px-4 py-2.5 text-white font-medium focus:outline-none focus:border-emerald-500 text-sm shadow-inner"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1.5 flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Mobile Number</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={attendeeForm.phone}
+                    onChange={(e) => setAttendeeForm({ ...attendeeForm, phone: e.target.value })}
+                    placeholder="e.g. 9876543210"
+                    className="w-full bg-[#0d1527] border border-white/15 rounded-xl px-4 py-2.5 text-white font-mono focus:outline-none focus:border-emerald-500 text-xs shadow-inner"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1.5 flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Email Address</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={attendeeForm.email}
+                    onChange={(e) => setAttendeeForm({ ...attendeeForm, email: e.target.value })}
+                    placeholder="e.g. attendee@email.com"
+                    className="w-full bg-[#0d1527] border border-white/15 rounded-xl px-4 py-2.5 text-white font-mono focus:outline-none focus:border-emerald-500 text-xs shadow-inner"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-bold mb-1.5 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-amber-400" />
+                  <span>ID Proof / College / Verification Remark</span>
+                </label>
+                <input
+                  type="text"
+                  value={attendeeForm.idNote}
+                  onChange={(e) => setAttendeeForm({ ...attendeeForm, idNote: e.target.value })}
+                  placeholder="e.g. Aadhaar Verified, Student ID #402, VIP Guest"
+                  className="w-full bg-[#0d1527] border border-white/15 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 text-xs shadow-inner"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setPendingAttendee(null)}
+                  disabled={grantingEntry}
+                  className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-semibold text-xs border border-white/10 transition"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={grantingEntry || !attendeeForm.attendeeName.trim()}
+                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-xs shadow-lg shadow-emerald-950 transition flex items-center justify-center gap-2"
+                >
+                  {grantingEntry ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      <span>✓ Confirm &amp; Grant Entry</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -84,7 +84,7 @@ export const offlineDbService = {
     }
   },
 
-  // Delete individual scan history item
+  // Delete individual scan history item & reset pass status
   async deleteScanHistoryItem(entryId, ticketNumber) {
     try {
       const all = await db.scanHistory.toArray();
@@ -93,23 +93,45 @@ export const offlineDbService = {
           await db.scanHistory.delete(item.id);
         }
       }
+
+      // Also remove from pendingScans
+      const allPending = await db.pendingScans.toArray();
+      for (const p of allPending) {
+        if (p.entryId === entryId || (ticketNumber && p.ticketNumber === ticketNumber)) {
+          await db.pendingScans.delete(p.entryId);
+        }
+      }
+
+      // ALSO reset ticket status in localTickets back to issued!
+      const allTickets = await db.localTickets.toArray();
+      for (const t of allTickets) {
+        if (t.ticketNumber === ticketNumber || t.id === ticketNumber) {
+          await db.localTickets.update(t.id, {
+            status: 'issued',
+            locallyScanned: false,
+            localScanCount: 0,
+            firstCheckIn: null
+          });
+        }
+      }
     } catch (e) {
       console.warn('Dexie scan history item delete error:', e);
     }
   },
 
-  // Clear all scan history locally
+  // Clear all scan history locally & reset all ticket statuses
   async clearAllScanHistory() {
     try {
       await db.scanHistory.clear();
       await db.pendingScans.clear();
-      // Reset locallyScanned flags on tickets
+      // Reset locallyScanned flags and status on tickets
       const allTickets = await db.localTickets.toArray();
       for (const t of allTickets) {
         await db.localTickets.update(t.id, {
           locallyScanned: false,
           localScanCount: 0,
-          status: 'issued'
+          status: 'issued',
+          firstCheckIn: null
         });
       }
     } catch (e) {
@@ -193,7 +215,11 @@ export const offlineDbService = {
     deviceId,
     gateId,
     volunteerName,
-    eventId
+    eventId,
+    attendeeName,
+    phone,
+    email,
+    idNote
   }) {
     const entryId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
       ? crypto.randomUUID() 
@@ -213,12 +239,22 @@ export const offlineDbService = {
       scanResultStatus = 'valid';
     }
 
+    const finalName = attendeeName || (ticket ? ticket.attendeeName : 'Attendee');
+    const finalPhone = phone || (ticket ? ticket.attendeePhone : '');
+    const finalEmail = email || (ticket ? ticket.attendeeEmail : '');
+    const finalNote = idNote || (ticket ? ticket.idNote : '');
+
     // Queue valid and locally repeated tickets into pendingScans
     if (ticket) {
       const scanEntry = {
         entryId,
         ticketId: ticket.id,
         ticketNumber: ticket.ticketNumber,
+        attendeeName: finalName,
+        phone: finalPhone,
+        email: finalEmail,
+        idNote: finalNote,
+        tier: ticket.tier || 'VIP',
         eventId: eventId || ticket.eventId,
         deviceId: deviceId || 'Gate-Device-1',
         gateId: gateId || 'Gate A',
@@ -235,14 +271,26 @@ export const offlineDbService = {
         await db.localTickets.update(ticket.id, {
           locallyScanned: true,
           localScanCount: (ticket.localScanCount || 0) + 1,
-          lastScannedAt: scannedAt
+          lastScannedAt: scannedAt,
+          attendeeName: finalName,
+          attendeePhone: finalPhone,
+          attendeeEmail: finalEmail,
+          idNote: finalNote,
+          status: 'checked_in',
+          firstCheckIn: { gateId, scannedAt, volunteerName }
         });
       } catch (err) {
         await db.localTickets.put({
           ...ticket,
+          attendeeName: finalName,
+          attendeePhone: finalPhone,
+          attendeeEmail: finalEmail,
+          idNote: finalNote,
+          status: 'checked_in',
           locallyScanned: true,
           localScanCount: 1,
-          lastScannedAt: scannedAt
+          lastScannedAt: scannedAt,
+          firstCheckIn: { gateId, scannedAt, volunteerName }
         });
       }
     }
@@ -251,18 +299,28 @@ export const offlineDbService = {
     const historyItem = {
       entryId,
       ticketNumber: ticket ? ticket.ticketNumber : 'UNKNOWN',
-      attendeeName: ticket ? ticket.attendeeName : 'Unregistered Ticket',
-      tier: ticket ? ticket.tier : '-',
+      attendeeName: finalName,
+      phone: finalPhone,
+      email: finalEmail,
+      idNote: finalNote,
+      tier: ticket ? ticket.tier : 'VIP',
       status: scanResultStatus,
       scannedAt,
-      gateId: gateId || 'Gate A'
+      gateId: gateId || 'Gate A',
+      volunteerName: volunteerName || 'Gate Volunteer Terminal'
     };
     await db.scanHistory.add(historyItem);
 
     return {
       entryId,
       status: scanResultStatus,
-      ticket: ticket || null,
+      ticket: {
+        ...(ticket || {}),
+        attendeeName: finalName,
+        phone: finalPhone,
+        email: finalEmail,
+        idNote: finalNote
+      },
       scannedAt
     };
   },
