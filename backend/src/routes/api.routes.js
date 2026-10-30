@@ -4,7 +4,7 @@ const router = express.Router();
 const { register, login, getMe, seedDemoAccounts } = require('../controllers/auth.controller');
 const { getEvents, getEventById, createEvent, downloadOfflinePackage } = require('../controllers/event.controller');
 const { getTickets, createTicket, deleteTicket, bulkCreateTickets } = require('../controllers/ticket.controller');
-const { syncBatch, getCheckIns } = require('../controllers/sync.controller');
+const { syncBatch, getCheckIns, deleteCheckIn, clearCheckIns } = require('../controllers/sync.controller');
 const { getConflicts, resolveConflict } = require('../controllers/conflict.controller');
 const { verifyToken, requireRole } = require('../middleware/auth');
 
@@ -28,12 +28,13 @@ router.post('/tickets', verifyToken, requireRole('organizer'), createTicket);
 router.delete('/tickets/:id', verifyToken, requireRole('organizer'), deleteTicket);
 router.post('/tickets/bulk', verifyToken, requireRole('organizer'), bulkCreateTickets);
 
-// === OFFLINE SYNC (Slide 07) ===
-// Volunteers sync scanned check-ins batch after reconnection
+// === OFFLINE SYNC & CHECK-IN AUDIT ===
 router.post('/sync', verifyToken, syncBatch);
 router.get('/check-ins', verifyToken, getCheckIns);
+router.delete('/check-ins/:id', verifyToken, requireRole('organizer'), deleteCheckIn);
+router.delete('/check-ins', verifyToken, requireRole('organizer'), clearCheckIns);
 
-// === CONFLICT RECONCILIATION (Slide 08) ===
+// === CONFLICT RECONCILIATION ===
 router.get('/conflicts', verifyToken, getConflicts);
 router.post('/conflicts/:id/resolve', verifyToken, requireRole('organizer'), resolveConflict);
 

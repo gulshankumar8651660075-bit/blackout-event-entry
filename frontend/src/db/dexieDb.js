@@ -46,12 +46,74 @@ export const offlineDbService = {
     try {
       await db.localTickets.put({
         ...ticket,
-        locallyScanned: false,
-        localScanCount: 0
+        locallyScanned: ticket.status === 'checked_in',
+        localScanCount: ticket.checkInCount || 0
       });
       console.log(`🎫 [Dexie.js] Cached new pass locally: ${ticket.ticketNumber}`);
     } catch (e) {
       console.warn('Error saving single ticket to Dexie:', e);
+    }
+  },
+
+  // Delete single ticket from local IndexedDB
+  async deleteSingleTicket(ticketId, ticketNumber) {
+    try {
+      if (ticketId) {
+        await db.localTickets.where('id').equals(ticketId).delete();
+      }
+      if (ticketNumber) {
+        await db.localTickets.where('ticketNumber').equals(ticketNumber).delete();
+      }
+      // Clean scan history for this ticket too
+      const allHistory = await db.scanHistory.toArray();
+      for (const h of allHistory) {
+        if (h.ticketNumber === ticketNumber || h.ticketId === ticketId) {
+          await db.scanHistory.delete(h.id);
+        }
+      }
+    } catch (e) {
+      console.warn('Dexie ticket delete fallback:', e);
+      try {
+        const all = await db.localTickets.toArray();
+        for (const t of all) {
+          if (t.id === ticketId || t.ticketNumber === ticketNumber) {
+            await db.localTickets.delete(t.id);
+          }
+        }
+      } catch (err) {}
+    }
+  },
+
+  // Delete individual scan history item
+  async deleteScanHistoryItem(entryId, ticketNumber) {
+    try {
+      const all = await db.scanHistory.toArray();
+      for (const item of all) {
+        if (item.entryId === entryId || (ticketNumber && item.ticketNumber === ticketNumber)) {
+          await db.scanHistory.delete(item.id);
+        }
+      }
+    } catch (e) {
+      console.warn('Dexie scan history item delete error:', e);
+    }
+  },
+
+  // Clear all scan history locally
+  async clearAllScanHistory() {
+    try {
+      await db.scanHistory.clear();
+      await db.pendingScans.clear();
+      // Reset locallyScanned flags on tickets
+      const allTickets = await db.localTickets.toArray();
+      for (const t of allTickets) {
+        await db.localTickets.update(t.id, {
+          locallyScanned: false,
+          localScanCount: 0,
+          status: 'issued'
+        });
+      }
+    } catch (e) {
+      console.warn('Dexie clear scan history error:', e);
     }
   },
 

@@ -23,7 +23,8 @@ import {
   Sparkles,
   QrCode,
   ScanLine,
-  ArrowRight
+  ArrowRight,
+  Trash2
 } from 'lucide-react';
 
 export const DashboardPage = () => {
@@ -154,6 +155,45 @@ export const DashboardPage = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Delete individual check-in entry
+  const handleDeleteCheckIn = async (entryId, ticketNumber) => {
+    if (window.confirm(`Delete check-in history record for pass ${ticketNumber || entryId}?`)) {
+      try {
+        try {
+          await api.deleteCheckIn(entryId);
+        } catch (apiErr) {
+          console.warn('API delete checkin fallback notice:', apiErr.message);
+        }
+        await offlineDbService.deleteScanHistoryItem(entryId, ticketNumber);
+        setCheckIns(prev => prev.filter(c => c.entryId !== entryId && c.ticketNumber !== ticketNumber));
+        await loadData();
+        alert('✅ Entry history record removed.');
+      } catch (err) {
+        alert('Delete failed: ' + err.message);
+      }
+    }
+  };
+
+  // Clear all check-in history
+  const handleClearAllHistory = async () => {
+    if (checkIns.length === 0) return;
+    if (window.confirm(`Clear all ${checkIns.length} attendee check-in records? This will reset the check-in count for this event.`)) {
+      try {
+        try {
+          await api.clearCheckIns();
+        } catch (apiErr) {
+          console.warn('API clear checkins fallback notice:', apiErr.message);
+        }
+        await offlineDbService.clearAllScanHistory();
+        setCheckIns([]);
+        await loadData();
+        alert('✅ All attendee entry history cleared.');
+      } catch (err) {
+        alert('Clear error: ' + err.message);
+      }
+    }
   };
 
   const pendingConflictsCount = conflicts.filter(c => c.status === 'pending_review').length;
@@ -383,6 +423,16 @@ export const DashboardPage = () => {
               <Download className="w-3.5 h-3.5 text-emerald-400" />
               <span>Export CSV</span>
             </button>
+
+            <button
+              onClick={handleClearAllHistory}
+              disabled={checkIns.length === 0}
+              className="px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-30 text-rose-300 text-xs font-semibold border border-rose-500/30 transition flex items-center gap-1.5"
+              title="Clear all attendance history"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+              <span>Clear History</span>
+            </button>
           </div>
         </div>
 
@@ -458,7 +508,8 @@ export const DashboardPage = () => {
                   <th className="py-3.5 px-4">Gate</th>
                   <th className="py-3.5 px-4">Check-in Time</th>
                   <th className="py-3.5 px-4">Verification Status</th>
-                  <th className="py-3.5 px-4 text-right">Scanned By</th>
+                  <th className="py-3.5 px-4">Scanned By</th>
+                  <th className="py-3.5 px-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 bg-[#0e1629]/50">
@@ -507,8 +558,17 @@ export const DashboardPage = () => {
                           <span>{ci.status === 'valid' ? 'ENTRY GRANTED' : 'REPEATED ENTRY'}</span>
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono text-slate-400 text-[11px]">
+                      <td className="py-3.5 px-4 font-mono text-slate-400 text-[11px]">
                         {ci.volunteerName || 'Gate Volunteer Terminal'}
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          onClick={() => handleDeleteCheckIn(ci.entryId, ci.ticketNumber)}
+                          className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 border border-rose-500/20 hover:border-rose-500/40 transition"
+                          title="Delete this check-in entry"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </td>
                     </tr>
                   );

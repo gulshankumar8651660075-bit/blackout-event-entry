@@ -58,9 +58,12 @@ const deleteTicket = async (req, res) => {
   try {
     const { id } = req.params;
     const db = require('../config/db').readLocalDb();
-    const idx = db.tickets.findIndex(t => t.id === id || t.ticketNumber === id);
+    const idx = (db.tickets || []).findIndex(t => t.id === id || t.ticketNumber === id);
     if (idx !== -1) {
-      db.tickets.splice(idx, 1);
+      const removedTicket = db.tickets.splice(idx, 1)[0];
+      // Clean up check-ins and conflicts for this ticket
+      db.checkIns = (db.checkIns || []).filter(c => c.ticketId !== removedTicket.id && c.ticketNumber !== removedTicket.ticketNumber);
+      db.conflicts = (db.conflicts || []).filter(c => c.ticketId !== removedTicket.id && c.ticketNumber !== removedTicket.ticketNumber);
       require('../config/db').writeLocalDb(db);
       return res.json({ success: true, message: 'Ticket deleted successfully' });
     }

@@ -325,8 +325,17 @@ export const TicketsPage = () => {
   const handleDeleteTicket = async (ticketId, ticketNumber) => {
     if (window.confirm(`Delete pass ${ticketNumber}?`)) {
       try {
-        await api.deleteTicket(ticketId);
+        // 1. Delete from Server
+        try {
+          await api.deleteTicket(ticketId);
+        } catch (apiErr) {
+          console.warn('Server ticket delete notice:', apiErr.message);
+        }
         
+        // 2. Delete from local IndexedDB
+        await offlineDbService.deleteSingleTicket(ticketId, ticketNumber);
+
+        // 3. Delete from localStorage
         let persisted = [];
         try {
           const raw = localStorage.getItem('blackout_persisted_passes');
@@ -335,12 +344,34 @@ export const TicketsPage = () => {
         persisted = persisted.filter(t => t.id !== ticketId && t.ticketNumber !== ticketNumber);
         localStorage.setItem('blackout_persisted_passes', JSON.stringify(persisted));
 
+        // 4. Update UI State immediately
         setTickets(prev => prev.filter(t => t.id !== ticketId && t.ticketNumber !== ticketNumber));
-        if (activePreviewTicket?.id === ticketId) {
+        if (activePreviewTicket?.id === ticketId || activePreviewTicket?.ticketNumber === ticketNumber) {
           setActivePreviewTicket(null);
         }
+
+        alert(`✅ Pass ${ticketNumber} deleted successfully!`);
       } catch (err) {
         alert('Delete notice: ' + err.message);
+      }
+    }
+  };
+
+  // Clear all passes for fresh start
+  const handleClearAllTickets = async () => {
+    if (tickets.length === 0) return;
+    if (window.confirm(`Delete all ${tickets.length} passes and clear the manifest?`)) {
+      try {
+        for (const t of tickets) {
+          try { await api.deleteTicket(t.id); } catch(e) {}
+          await offlineDbService.deleteSingleTicket(t.id, t.ticketNumber);
+        }
+        localStorage.removeItem('blackout_persisted_passes');
+        setTickets([]);
+        setActivePreviewTicket(null);
+        alert('✅ All passes cleared successfully.');
+      } catch (err) {
+        alert('Clear error: ' + err.message);
       }
     }
   };
@@ -459,6 +490,17 @@ export const TicketsPage = () => {
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          {tickets.length > 0 && (
+            <button
+              onClick={handleClearAllTickets}
+              className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-white/5 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 border border-white/10 transition flex items-center gap-1.5"
+              title="Delete all passes"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Clear All Passes</span>
+            </button>
+          )}
+
           <span className="text-xs font-mono text-slate-400 font-semibold">Total Passes:</span>
           <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300">
             {tickets.length} Registered

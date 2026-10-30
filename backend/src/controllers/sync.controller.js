@@ -77,7 +77,53 @@ const getCheckIns = async (req, res) => {
   }
 };
 
+const deleteCheckIn = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = require('../config/db').readLocalDb();
+    const idx = (db.checkIns || []).findIndex(c => c.entryId === id || c.id === id || c.ticketNumber === id);
+    if (idx !== -1) {
+      const removed = db.checkIns.splice(idx, 1)[0];
+      // Reset ticket status if no more checkIns
+      const ticket = (db.tickets || []).find(t => t.ticketNumber === removed.ticketNumber || t.id === removed.ticketId);
+      if (ticket) {
+        const remaining = (db.checkIns || []).filter(c => c.ticketNumber === ticket.ticketNumber);
+        if (remaining.length === 0) {
+          ticket.status = 'issued';
+          ticket.firstCheckIn = null;
+          ticket.checkInCount = 0;
+        }
+      }
+      require('../config/db').writeLocalDb(db);
+      return res.json({ success: true, message: 'Check-in entry removed successfully' });
+    }
+    res.status(404).json({ success: false, message: 'Check-in not found' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const clearCheckIns = async (req, res) => {
+  try {
+    const db = require('../config/db').readLocalDb();
+    db.checkIns = [];
+    db.conflicts = [];
+    // Reset all tickets status
+    (db.tickets || []).forEach(t => {
+      t.status = 'issued';
+      t.firstCheckIn = null;
+      t.checkInCount = 0;
+    });
+    require('../config/db').writeLocalDb(db);
+    res.json({ success: true, message: 'All check-in history cleared successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   syncBatch,
-  getCheckIns
+  getCheckIns,
+  deleteCheckIn,
+  clearCheckIns
 };

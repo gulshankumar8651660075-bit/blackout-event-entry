@@ -78,6 +78,8 @@ export const api = {
   // Offline Sync & Conflicts (Slide 07 & 08)
   syncBatch: (payload) => api.request('/sync', { method: 'POST', body: JSON.stringify(payload) }),
   getCheckIns: (eventId) => api.request(eventId ? `/check-ins?eventId=${eventId}` : '/check-ins'),
+  deleteCheckIn: (id) => api.request(`/check-ins/${id}`, { method: 'DELETE' }),
+  clearCheckIns: () => api.request('/check-ins', { method: 'DELETE' }),
   getConflicts: (eventId) => api.request(eventId ? `/conflicts?eventId=${eventId}` : '/conflicts'),
   resolveConflict: (id, payload) => api.request(`/conflicts/${id}/resolve`, { method: 'POST', body: JSON.stringify(payload) }),
   getHealth: () => api.request('/health')
