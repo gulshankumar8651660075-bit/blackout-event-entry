@@ -33,8 +33,8 @@ export const TicketCard = ({ ticket, onQuickScan }) => {
   };
 
   const statusColors = {
-    issued: 'bg-emerald-950/60 border-emerald-500/40 text-emerald-400',
-    checked_in: 'bg-blue-950/60 border-blue-500/40 text-blue-400',
+    issued: 'bg-amber-950/60 border-amber-500/40 text-amber-400',
+    checked_in: 'bg-purple-950/60 border-purple-500/40 text-purple-300',
     conflict: 'bg-rose-950/60 border-rose-500/40 text-rose-300 animate-pulse',
     cancelled: 'bg-slate-900 border-slate-700 text-slate-400'
   };
@@ -45,7 +45,7 @@ export const TicketCard = ({ ticket, onQuickScan }) => {
       <div className="p-4 border-b border-slate-800/80 bg-slate-950/40 flex items-center justify-between">
         <div>
           <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">Pass</span>
-          <h4 className="font-mono font-bold text-lg text-emerald-400">{ticket.ticketNumber}</h4>
+          <h4 className="font-mono font-bold text-lg text-amber-400">{ticket.ticketNumber}</h4>
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${statusColors[ticket.status] || 'bg-slate-800 text-slate-300'}`}>
@@ -73,7 +73,7 @@ export const TicketCard = ({ ticket, onQuickScan }) => {
           )}
 
           {ticket.firstCheckIn && (
-            <div className="mt-2 text-[11px] font-mono text-emerald-400/90 bg-emerald-950/40 border border-emerald-500/20 px-2 py-1 rounded">
+            <div className="mt-2 text-[11px] font-mono text-amber-400/90 bg-amber-950/40 border border-amber-500/20 px-2 py-1 rounded">
               Entry: {ticket.firstCheckIn.gateId} ({new Date(ticket.firstCheckIn.scannedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
             </div>
           )}
@@ -92,14 +92,14 @@ export const TicketCard = ({ ticket, onQuickScan }) => {
           onClick={copyCode}
           className="text-xs text-slate-400 hover:text-white flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 transition"
         >
-          {copied ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+          {copied ? <CheckCircle className="w-3.5 h-3.5 text-amber-400" /> : <Copy className="w-3.5 h-3.5" />}
           <span>{copied ? 'Copied' : 'Copy ID'}</span>
         </button>
 
         {onQuickScan && (
           <button
             onClick={() => onQuickScan(ticket)}
-            className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/60 border border-emerald-500/30 transition shadow-sm"
+            className="text-xs font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-950/60 hover:bg-amber-900/60 border border-amber-500/30 transition shadow-sm"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Simulate Scan</span>

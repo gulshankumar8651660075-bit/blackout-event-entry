@@ -89,7 +89,7 @@ export const ConflictCenterPage = () => {
             <button
               onClick={() => setFilter('resolved')}
               className={`px-3 py-1.5 rounded-lg transition ${
-                filter === 'resolved' ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-950' : 'text-slate-400 hover:text-white'
+                filter === 'resolved' ? 'bg-amber-600 text-white font-bold shadow-md shadow-amber-950' : 'text-slate-400 hover:text-white'
               }`}
             >
               Resolved
@@ -106,7 +106,7 @@ export const ConflictCenterPage = () => {
         </div>
       ) : filtered.length === 0 ? (
         <div className="glass-panel p-16 rounded-3xl border border-white/10 text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
             <CheckCircle className="w-7 h-7" />
           </div>
           <div>
@@ -132,7 +132,7 @@ export const ConflictCenterPage = () => {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-3">
-                    <span className="font-mono font-extrabold text-emerald-400 text-lg">
+                    <span className="font-mono font-extrabold text-amber-400 text-lg">
                       {conflict.ticketNumber}
                     </span>
                     <span className="text-base font-bold text-white">
@@ -141,7 +141,7 @@ export const ConflictCenterPage = () => {
                     <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full uppercase border ${
                       conflict.status === 'pending_review'
                         ? 'bg-rose-950/80 text-rose-300 border-rose-500/40'
-                        : 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
+                        : 'bg-amber-950/80 text-amber-300 border-amber-500/40'
                     }`}>
                       {conflict.status === 'pending_review' ? 'FLAGGED FOR REVIEW' : 'RESOLVED'}
                     </span>
@@ -169,7 +169,7 @@ export const ConflictCenterPage = () => {
                 {conflict.conflictingEntries.map((entry, idx) => (
                   <div key={idx} className="p-3 rounded-2xl bg-black/40 border border-white/5 text-xs space-y-1">
                     <div className="flex items-center justify-between text-[11px] font-mono">
-                      <span className="font-bold text-cyan-400">{entry.gateId}</span>
+                      <span className="font-bold text-amber-400">{entry.gateId}</span>
                       <span className="text-slate-400">{new Date(entry.scannedAt).toLocaleTimeString()}</span>
                     </div>
                     <div className="text-[11px] text-slate-300">Volunteer: {entry.volunteerName}</div>

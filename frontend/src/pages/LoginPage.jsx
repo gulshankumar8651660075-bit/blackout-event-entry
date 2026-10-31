@@ -44,18 +44,18 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#070b16]">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#0b0914]">
       {/* Background ambient glowing orbs */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-tr from-emerald-500/15 via-indigo-500/10 to-transparent rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-10 left-10 w-72 h-72 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-tr from-amber-500/15 via-orange-500/10 to-rose-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-10 left-10 w-72 h-72 bg-rose-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
       <div className="w-full max-w-md relative z-10 glass-panel p-8 sm:p-9 rounded-3xl border border-white/10 shadow-2xl space-y-6">
         
         {/* Brand header */}
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 via-teal-400 to-cyan-400 p-0.5 mx-auto flex items-center justify-center shadow-xl shadow-emerald-500/25">
-            <div className="w-full h-full bg-[#070b16] rounded-[14px] flex items-center justify-center">
-              <Radio className="w-7 h-7 text-emerald-400 animate-pulse" />
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500 via-orange-400 to-rose-400 p-0.5 mx-auto flex items-center justify-center shadow-xl shadow-amber-500/25">
+            <div className="w-full h-full bg-[#0b0914] rounded-[14px] flex items-center justify-center">
+              <Radio className="w-7 h-7 text-amber-400 animate-pulse" />
             </div>
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-mono">
@@ -67,8 +67,8 @@ export const LoginPage = () => {
         </div>
 
         {/* Security Credential Banner */}
-        <div className="flex items-center justify-center gap-1.5 text-[11px] font-mono text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 py-2 px-3 rounded-xl">
-          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+        <div className="flex items-center justify-center gap-1.5 text-[11px] font-mono text-amber-400 bg-amber-950/40 border border-amber-500/30 py-2 px-3 rounded-xl">
+          <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
           <span>Strict Authentication &bull; bcrypt &amp; JWT Verified</span>
         </div>
 
@@ -91,7 +91,7 @@ export const LoginPage = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Gulshan Kumar"
-                  className="w-full bg-[#070b16] border border-white/15 rounded-xl pl-10 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-[#130f1e] border border-white/15 rounded-xl pl-10 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
             </div>
@@ -107,7 +107,7 @@ export const LoginPage = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
-                className="w-full bg-[#070b16] border border-white/15 rounded-xl pl-10 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-sans"
+                className="w-full bg-[#130f1e] border border-white/15 rounded-xl pl-10 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 font-sans"
               />
             </div>
           </div>
@@ -122,7 +122,7 @@ export const LoginPage = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-[#070b16] border border-white/15 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
+                className="w-full bg-[#130f1e] border border-white/15 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
               />
               <button
                 type="button"
@@ -141,7 +141,7 @@ export const LoginPage = () => {
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-[#130f1e] border border-white/15 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
               >
                 <option value="organizer">Lead Organiser (Overview &amp; Passes Management)</option>
                 <option value="volunteer">Gate Volunteer (Gate Scanner Terminal)</option>
@@ -152,7 +152,7 @@ export const LoginPage = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-xs shadow-lg shadow-emerald-950 transition flex items-center justify-center gap-2 mt-2"
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-600 via-orange-500 to-rose-500 hover:from-amber-500 hover:to-rose-400 text-white font-bold text-xs shadow-lg shadow-amber-950 transition flex items-center justify-center gap-2 mt-2"
           >
             <span>{loading ? 'Authenticating...' : isRegister ? 'Create Secure Account' : 'Sign In with Credentials'}</span>
             <ArrowRight className="w-4 h-4" />
@@ -164,7 +164,7 @@ export const LoginPage = () => {
           <button
             type="button"
             onClick={() => { setIsRegister(!isRegister); setError(''); }}
-            className="text-emerald-400 hover:underline font-semibold"
+            className="text-amber-400 hover:underline font-semibold"
           >
             {isRegister ? '← Already have an account? Sign In' : "Don't have an account? Register new user →"}
           </button>

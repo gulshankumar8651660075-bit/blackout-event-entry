@@ -162,13 +162,13 @@ export const DemoGuidePage = () => {
         
         {/* Step 1 */}
         <div className={`glass-card p-6 rounded-2xl border transition-all ${
-          activeStep === 1 ? 'border-emerald-500/60 bg-emerald-950/20 shadow-xl shadow-emerald-950/30' : 'border-slate-800'
+          activeStep === 1 ? 'border-amber-500/60 bg-amber-950/20 shadow-xl shadow-amber-950/30' : 'border-slate-800'
         }`}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-4">
               <div className={`p-3 rounded-xl font-mono font-bold text-sm shrink-0 ${
                 completedSteps.includes(1)
-                  ? 'bg-emerald-500 text-black'
+                  ? 'bg-amber-500 text-black'
                   : 'bg-slate-800 text-slate-300'
               }`}>
                 01
@@ -183,7 +183,7 @@ export const DemoGuidePage = () => {
             <button
               onClick={runStep1}
               disabled={busy}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-2"
+              className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center justify-center gap-2"
             >
               <span>{completedSteps.includes(1) ? 'Re-run Step 1' : 'Execute Step 1'}</span>
               <ArrowRight className="w-4 h-4" />
@@ -193,13 +193,13 @@ export const DemoGuidePage = () => {
 
         {/* Step 2 */}
         <div className={`glass-card p-6 rounded-2xl border transition-all ${
-          activeStep === 2 ? 'border-emerald-500/60 bg-emerald-950/20 shadow-xl shadow-emerald-950/30' : 'border-slate-800'
+          activeStep === 2 ? 'border-amber-500/60 bg-amber-950/20 shadow-xl shadow-amber-950/30' : 'border-slate-800'
         }`}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-4">
               <div className={`p-3 rounded-xl font-mono font-bold text-sm shrink-0 ${
                 completedSteps.includes(2)
-                  ? 'bg-emerald-500 text-black'
+                  ? 'bg-amber-500 text-black'
                   : 'bg-slate-800 text-slate-300'
               }`}>
                 02
@@ -214,7 +214,7 @@ export const DemoGuidePage = () => {
             <button
               onClick={runStep2}
               disabled={busy}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-2"
+              className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center justify-center gap-2"
             >
               <DownloadCloud className="w-4 h-4" />
               <span>{completedSteps.includes(2) ? 'Re-download' : 'Execute Step 2'}</span>
@@ -277,7 +277,7 @@ export const DemoGuidePage = () => {
               <button
                 onClick={() => runStep4('Gate A')}
                 disabled={busy}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center gap-2"
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center gap-2"
               >
                 <span>4A. Scan at Gate A (Offline)</span>
               </button>
@@ -295,13 +295,13 @@ export const DemoGuidePage = () => {
 
         {/* Step 5 */}
         <div className={`glass-card p-6 rounded-2xl border transition-all ${
-          activeStep === 5 ? 'border-blue-500/60 bg-blue-950/20 shadow-xl shadow-blue-950/30' : 'border-slate-800'
+          activeStep === 5 ? 'border-purple-500/60 bg-purple-950/20 shadow-xl shadow-purple-950/30' : 'border-slate-800'
         }`}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-4">
               <div className={`p-3 rounded-xl font-mono font-bold text-sm shrink-0 ${
                 completedSteps.includes(5)
-                  ? 'bg-blue-500 text-white'
+                  ? 'bg-purple-500 text-white'
                   : 'bg-slate-800 text-slate-300'
               }`}>
                 05
@@ -316,7 +316,7 @@ export const DemoGuidePage = () => {
             <button
               onClick={runStep5}
               disabled={busy}
-              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center justify-center gap-2"
+              className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition flex items-center justify-center gap-2"
             >
               <CloudUpload className="w-4 h-4" />
               <span>Restore &amp; Sync</span>

@@ -49,10 +49,10 @@ const AppContent = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#070b16] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0b0914] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-9 h-9 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-xs font-mono text-emerald-400 tracking-wider">Loading BLACKOUT System...</span>
+          <div className="w-9 h-9 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-xs font-mono text-amber-400 tracking-wider">Loading BLACKOUT System...</span>
         </div>
       </div>
     );
@@ -63,7 +63,7 @@ const AppContent = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#070b16] flex flex-col selection:bg-emerald-500 selection:text-black">
+    <div className="min-h-screen bg-[#0b0914] flex flex-col selection:bg-amber-500 selection:text-black">
       <Navbar onSyncTrigger={handleGlobalSync} isSyncing={isSyncing} />
       <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-6 pb-12">
         <Routes>

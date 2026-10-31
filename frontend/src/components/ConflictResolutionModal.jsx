@@ -40,7 +40,7 @@ export const ConflictResolutionModal = ({ conflict, onClose, onResolve }) => {
                 Slide 08: Duplicate Offline Entry Conflict
               </span>
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                Ticket: <span className="font-mono text-emerald-400">{conflict.ticketNumber}</span>
+                Ticket: <span className="font-mono text-amber-400">{conflict.ticketNumber}</span>
                 <span className="text-slate-400 font-normal">({conflict.attendeeName})</span>
               </h3>
             </div>
@@ -61,32 +61,32 @@ export const ConflictResolutionModal = ({ conflict, onClose, onResolve }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Gate A / Entry 1 */}
-            <div className="p-4 rounded-xl border border-blue-500/40 bg-blue-950/20 space-y-3">
-              <div className="flex items-center justify-between border-b border-blue-500/20 pb-2">
-                <span className="text-xs font-mono font-bold text-blue-400 uppercase">First Recorded Check-in</span>
-                <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono">Entry #1</span>
+            <div className="p-4 rounded-xl border border-amber-500/40 bg-amber-950/20 space-y-3">
+              <div className="flex items-center justify-between border-b border-amber-500/20 pb-2">
+                <span className="text-xs font-mono font-bold text-amber-400 uppercase">First Recorded Check-in</span>
+                <span className="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">Entry #1</span>
               </div>
               
               <div className="space-y-2 text-xs">
                 <div className="flex items-center justify-between text-slate-300">
-                  <span className="text-slate-400 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-blue-400" /> Gate Location:</span>
+                  <span className="text-slate-400 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-amber-400" /> Gate Location:</span>
                   <span className="font-bold text-white">{entryA?.gateId || 'Gate A'}</span>
                 </div>
                 <div className="flex items-center justify-between text-slate-300">
-                  <span className="text-slate-400 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-blue-400" /> Scan Time:</span>
-                  <span className="font-mono text-emerald-300">
+                  <span className="text-slate-400 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-amber-400" /> Scan Time:</span>
+                  <span className="font-mono text-amber-300">
                     {entryA?.scannedAt ? new Date(entryA.scannedAt).toLocaleTimeString() : 'N/A'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-slate-300">
-                  <span className="text-slate-400 flex items-center gap-1.5"><Smartphone className="w-3.5 h-3.5 text-blue-400" /> Device ID:</span>
+                  <span className="text-slate-400 flex items-center gap-1.5"><Smartphone className="w-3.5 h-3.5 text-amber-400" /> Device ID:</span>
                   <span className="font-mono text-slate-300">{entryA?.deviceId || 'DEV-ALPHA'}</span>
                 </div>
                 <div className="flex items-center justify-between text-slate-300">
-                  <span className="text-slate-400 flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-blue-400" /> Volunteer:</span>
+                  <span className="text-slate-400 flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-amber-400" /> Volunteer:</span>
                   <span className="text-slate-200">{entryA?.volunteerName || 'Volunteer A'}</span>
                 </div>
-                <div className="mt-2 pt-2 border-t border-blue-500/10 text-emerald-400 font-semibold text-[11px]">
+                <div className="mt-2 pt-2 border-t border-amber-500/10 text-amber-400 font-semibold text-[11px]">
                   ✓ Offline Result: Locally Valid
                 </div>
               </div>
@@ -134,7 +134,7 @@ export const ConflictResolutionModal = ({ conflict, onClose, onResolve }) => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <label className={`p-3 rounded-xl border cursor-pointer text-xs transition flex flex-col justify-between ${
                 decision === 'accepted_first' 
-                  ? 'bg-blue-950/60 border-blue-500 text-white shadow-md shadow-blue-950' 
+                  ? 'bg-purple-950/60 border-purple-500 text-white shadow-md shadow-purple-950' 
                   : 'bg-slate-800/40 border-slate-700 text-slate-400 hover:border-slate-600'
               }`}>
                 <input
@@ -145,13 +145,13 @@ export const ConflictResolutionModal = ({ conflict, onClose, onResolve }) => {
                   onChange={() => setDecision('accepted_first')}
                   className="sr-only"
                 />
-                <span className="font-bold text-blue-400 mb-1">Accept First Only</span>
+                <span className="font-bold text-purple-400 mb-1">Accept First Only</span>
                 <span className="text-[11px] text-slate-300">Approve Entry #1, flag Entry #2 as unauthorized pass-back.</span>
               </label>
 
               <label className={`p-3 rounded-xl border cursor-pointer text-xs transition flex flex-col justify-between ${
                 decision === 'accepted_both' 
-                  ? 'bg-emerald-950/60 border-emerald-500 text-white shadow-md shadow-emerald-950' 
+                  ? 'bg-amber-950/60 border-amber-500 text-white shadow-md shadow-amber-950' 
                   : 'bg-slate-800/40 border-slate-700 text-slate-400 hover:border-slate-600'
               }`}>
                 <input
@@ -162,7 +162,7 @@ export const ConflictResolutionModal = ({ conflict, onClose, onResolve }) => {
                   onChange={() => setDecision('accepted_both')}
                   className="sr-only"
                 />
-                <span className="font-bold text-emerald-400 mb-1">Accept Both (Pass)</span>
+                <span className="font-bold text-amber-400 mb-1">Accept Both (Pass)</span>
                 <span className="text-[11px] text-slate-300">Allow both entries (e.g. VIP multi-entry or permitted re-entry).</span>
               </label>
 
@@ -191,7 +191,7 @@ export const ConflictResolutionModal = ({ conflict, onClose, onResolve }) => {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="e.g., Verified attendee ID at Gate A; Gate B attendee was impersonator"
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
               />
             </div>
 
@@ -206,7 +206,7 @@ export const ConflictResolutionModal = ({ conflict, onClose, onResolve }) => {
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center gap-2"
+                className="px-5 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-bold shadow-lg shadow-amber-950 transition flex items-center gap-2"
               >
                 {submitting ? 'Saving...' : 'Confirm Resolution'}
               </button>

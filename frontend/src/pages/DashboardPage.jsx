@@ -460,14 +460,14 @@ export const DashboardPage = () => {
 
         <div className="relative z-10 space-y-2 max-w-2xl">
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 font-bold tracking-wider uppercase">
-              <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-400" />
+            <div className="flex items-center gap-2 text-xs font-mono text-amber-400 font-bold tracking-wider uppercase">
+              <Radio className="w-3.5 h-3.5 animate-pulse text-amber-400" />
               <span>Lead Organiser Command Center</span>
             </div>
             
             {/* Event Switcher Dropdown (if organizer has multiple events) */}
             {events.length > 1 && (
-              <div className="flex items-center gap-1.5 bg-[#0a0f1e] border border-emerald-500/30 rounded-xl px-2.5 py-1">
+              <div className="flex items-center gap-1.5 bg-[#110e1a] border border-amber-500/30 rounded-xl px-2.5 py-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">Event:</span>
                 <select
                   value={selectedEvent?.id || ''}
@@ -475,10 +475,10 @@ export const DashboardPage = () => {
                     const ev = events.find(x => x.id === e.target.value);
                     if (ev) setSelectedEvent(ev);
                   }}
-                  className="bg-transparent text-xs font-mono font-bold text-emerald-400 focus:outline-none cursor-pointer max-w-[200px] truncate"
+                  className="bg-transparent text-xs font-mono font-bold text-amber-400 focus:outline-none cursor-pointer max-w-[200px] truncate"
                 >
                   {events.map(ev => (
-                    <option key={ev.id} value={ev.id} className="bg-[#0a0f1e] text-white">
+                    <option key={ev.id} value={ev.id} className="bg-[#110e1a] text-white">
                       {ev.title}
                     </option>
                   ))}
@@ -495,7 +495,7 @@ export const DashboardPage = () => {
 
             <button
               onClick={handleOpenEventQr}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 hover:from-emerald-500 hover:to-cyan-400 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-lg shadow-emerald-950/60 ring-2 ring-emerald-500/40"
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 via-orange-500 to-rose-500 hover:from-amber-500 hover:to-rose-400 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-lg shadow-amber-950/60 ring-2 ring-amber-500/40"
               title="Show Event Entry QR Code for Volunteers to scan with phone"
             >
               <QrCode className="w-4 h-4 text-white" />
@@ -513,10 +513,10 @@ export const DashboardPage = () => {
 
             <button
               onClick={() => setShowCreateEventModal(true)}
-              className="px-3 py-1 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+              className="px-3 py-1 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
               title="Create a new event"
             >
-              <PlusCircle className="w-3.5 h-3.5 text-teal-400" />
+              <PlusCircle className="w-3.5 h-3.5 text-rose-400" />
               <span>+ New Event</span>
             </button>
 
@@ -534,7 +534,7 @@ export const DashboardPage = () => {
           {selectedEvent && (
             <div className="flex items-center gap-3 text-xs text-slate-300 pt-1 flex-wrap font-sans">
               <span className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
-                <MapPin className="w-3.5 h-3.5 text-cyan-400" /> {selectedEvent.venue}
+                <MapPin className="w-3.5 h-3.5 text-amber-400" /> {selectedEvent.venue}
               </span>
               <span className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
                 <Calendar className="w-3.5 h-3.5 text-purple-400" /> {selectedEvent.date}
@@ -542,7 +542,7 @@ export const DashboardPage = () => {
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-[10px] text-slate-400 uppercase font-mono">Gates:</span>
                 {(selectedEvent.gates || []).map((gate, idx) => (
-                  <span key={idx} className="text-emerald-400 font-mono text-[11px] font-semibold bg-emerald-950/50 px-2 py-0.5 rounded-md border border-emerald-500/30">
+                  <span key={idx} className="text-amber-400 font-mono text-[11px] font-semibold bg-amber-950/50 px-2 py-0.5 rounded-md border border-amber-500/30">
                     {gate}
                   </span>
                 ))}
@@ -559,12 +559,12 @@ export const DashboardPage = () => {
             className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition"
             title="Refresh Live Data"
           >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-emerald-400' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-amber-400' : ''}`} />
           </button>
 
           <Link
             to="/tickets"
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center gap-2 group"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 text-white text-xs font-bold shadow-lg shadow-amber-950/60 transition flex items-center gap-2 group"
           >
             <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
             <span>+ Issue Passes &amp; QR</span>
@@ -575,18 +575,18 @@ export const DashboardPage = () => {
       {/* 3-Step Simple Visual Guide Banner */}
       <div className="glass-panel p-5 rounded-2xl border border-white/10 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
         <Link to="/tickets" className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 transition group">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-bold shrink-0">
             1
           </div>
           <div className="min-w-0">
-            <h4 className="font-bold text-white group-hover:text-emerald-300 transition">Issue Passes &amp; QR</h4>
+            <h4 className="font-bold text-white group-hover:text-amber-300 transition">Issue Passes &amp; QR</h4>
             <p className="text-[11px] text-slate-400 truncate">Create VIP or General passes with instant QR</p>
           </div>
           <ChevronRight className="w-4 h-4 text-slate-500 ml-auto shrink-0" />
         </Link>
 
         <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/5">
-          <div className="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center font-bold shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-orange-500/20 text-orange-400 border border-orange-500/30 flex items-center justify-center font-bold shrink-0">
             2
           </div>
           <div className="min-w-0">
@@ -613,21 +613,21 @@ export const DashboardPage = () => {
           value={totalPasses}
           subtitle="Registered attendees"
           icon={Ticket}
-          color="blue"
+          color="purple"
         />
         <StatCard
           title="Attendees Entered"
           value={checkedInCount}
           subtitle={`${attendancePercent}% Overall Attendance`}
           icon={CheckCircle2}
-          color="emerald"
+          color="amber"
         />
         <StatCard
           title="Duplicate Pass Flags"
           value={pendingConflictsCount}
           subtitle={pendingConflictsCount > 0 ? "Requires review" : "Zero duplicate entries"}
           icon={AlertTriangle}
-          color={pendingConflictsCount > 0 ? "rose" : "emerald"}
+          color={pendingConflictsCount > 0 ? "rose" : "amber"}
           alert={pendingConflictsCount > 0}
         />
         <StatCard
@@ -673,7 +673,7 @@ export const DashboardPage = () => {
               >
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-mono font-bold text-emerald-400">{conf.ticketNumber}</span>
+                    <span className="text-sm font-mono font-bold text-amber-400">{conf.ticketNumber}</span>
                     <span className="text-xs text-white font-medium">— {conf.attendeeName}</span>
                   </div>
                   <p className="text-xs text-slate-400 mt-1">
@@ -682,7 +682,7 @@ export const DashboardPage = () => {
                 </div>
                 <button
                   onClick={() => setActiveConflict(conf)}
-                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition shrink-0"
+                  className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition shrink-0"
                 >
                   Review
                 </button>
@@ -697,12 +697,12 @@ export const DashboardPage = () => {
         <div className="flex items-center justify-between text-xs">
           <span className="font-semibold text-slate-300">Live Gate Turnout Progress</span>
           <span className="font-mono font-bold text-white">
-            <span className="text-emerald-400">{checkedInCount}</span> / {totalPasses} Attendees Entered ({attendancePercent}%)
+            <span className="text-amber-400">{checkedInCount}</span> / {totalPasses} Attendees Entered ({attendancePercent}%)
           </span>
         </div>
         <div className="w-full h-3.5 bg-black/40 rounded-full overflow-hidden border border-white/10 p-0.5">
           <div
-            className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 transition-all duration-500 rounded-full glow-emerald"
+            className="h-full bg-gradient-to-r from-amber-500 via-orange-400 to-rose-400 transition-all duration-500 rounded-full glow-amber"
             style={{ width: `${attendancePercent}%` }}
           ></div>
         </div>
@@ -712,13 +712,13 @@ export const DashboardPage = () => {
       <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 space-y-6 shadow-2xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
           <div>
-            <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 font-bold uppercase tracking-wider mb-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block"></span>
+            <div className="flex items-center gap-2 text-xs font-mono text-amber-400 font-bold uppercase tracking-wider mb-1">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping inline-block"></span>
               <span>Live Attendance Log</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-extrabold text-white flex items-center gap-3">
               <span>Attendee Entry History</span>
-              <span className="text-xs font-mono px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              <span className="text-xs font-mono px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
                 {checkIns.length} Verified Entries
               </span>
             </h2>
@@ -734,7 +734,7 @@ export const DashboardPage = () => {
               className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-40 text-slate-200 text-xs font-semibold border border-white/10 transition flex items-center gap-2"
               title="Download attendance list as CSV"
             >
-              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              <Download className="w-3.5 h-3.5 text-amber-400" />
               <span>Export CSV</span>
             </button>
 
@@ -759,7 +759,7 @@ export const DashboardPage = () => {
               value={historySearch}
               onChange={(e) => setHistorySearch(e.target.value)}
               placeholder="Search attendee name or pass ID..."
-              className="w-full bg-[#0a0f1d] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-sans"
+              className="w-full bg-[#110e1a] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 font-sans"
             />
           </div>
 
@@ -772,7 +772,7 @@ export const DashboardPage = () => {
                   onClick={() => setGateFilter(g)}
                   className={`px-3 py-1 rounded-lg transition text-xs ${
                     gateFilter === g
-                      ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-950'
+                      ? 'bg-amber-600 text-white font-bold shadow-md shadow-amber-950'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -788,7 +788,7 @@ export const DashboardPage = () => {
           <div className="py-16 text-center text-slate-400 text-xs border border-dashed border-white/10 rounded-2xl bg-black/20 p-6 space-y-3">
             {checkIns.length === 0 ? (
               <>
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
                   <Ticket className="w-6 h-6" />
                 </div>
                 <div>
@@ -800,7 +800,7 @@ export const DashboardPage = () => {
                 <div className="pt-2">
                   <Link
                     to="/tickets"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-950 transition"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-lg shadow-amber-950 transition"
                   >
                     <span>Go to Passes &amp; Test Scan</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -814,7 +814,7 @@ export const DashboardPage = () => {
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-white/10 shadow-xl">
             <table className="w-full text-left text-xs">
-              <thead className="bg-[#0a0f1d] text-slate-400 font-mono uppercase tracking-wider text-[10px] border-b border-white/10">
+              <thead className="bg-[#110e1a] text-slate-400 font-mono uppercase tracking-wider text-[10px] border-b border-white/10">
                 <tr>
                   <th className="py-3.5 px-4">Attendee Name</th>
                   <th className="py-3.5 px-4">Pass ID</th>
@@ -826,22 +826,22 @@ export const DashboardPage = () => {
                   <th className="py-3.5 px-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 bg-[#0e1629]/50">
+              <tbody className="divide-y divide-white/5 bg-[#171322]/50">
                 {filteredCheckIns.slice().reverse().map((ci, index) => {
                   const initial = (ci.attendeeName || 'A').charAt(0).toUpperCase();
                   return (
                     <tr key={ci.entryId || (ci.ticketNumber + '-' + index)} className="hover:bg-white/[0.04] transition-colors">
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center font-bold text-xs shadow-sm shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-600 to-rose-600 text-white flex items-center justify-center font-bold text-xs shadow-sm shrink-0">
                             {initial}
                           </div>
                           <div>
                             <div className="font-bold text-white text-sm">{ci.attendeeName || 'Attendee'}</div>
                             <div className="flex items-center gap-2.5 mt-0.5 text-[11px] text-slate-400 font-mono flex-wrap">
                               {ci.phone && ci.phone !== '-' && (
-                                <span className="flex items-center gap-1 text-cyan-300 font-semibold">
-                                  <Phone className="w-3 h-3 text-cyan-400" /> {ci.phone}
+                                <span className="flex items-center gap-1 text-amber-300 font-semibold">
+                                  <Phone className="w-3 h-3 text-amber-400" /> {ci.phone}
                                 </span>
                               )}
                               {ci.email && ci.email !== '-' && (
@@ -858,7 +858,7 @@ export const DashboardPage = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 font-mono font-bold text-emerald-400">
+                      <td className="py-3.5 px-4 font-mono font-bold text-amber-400">
                         {ci.ticketNumber}
                       </td>
                       <td className="py-3.5 px-4">
@@ -867,13 +867,13 @@ export const DashboardPage = () => {
                         </span>
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="px-2.5 py-1 rounded-full bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 font-mono text-[11px] font-bold">
+                        <span className="px-2.5 py-1 rounded-full bg-amber-950/60 text-amber-300 border border-amber-500/30 font-mono text-[11px] font-bold">
                           {ci.gateId || 'Gate A'}
                         </span>
                       </td>
                       <td className="py-3.5 px-4 font-mono text-slate-300">
                         <div className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                          <Clock className="w-3.5 h-3.5 text-amber-400" />
                           <span className="font-semibold">{ci.scannedAt ? new Date(ci.scannedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-'}</span>
                         </div>
                         <span className="text-[10px] text-slate-500">{ci.scannedAt ? new Date(ci.scannedAt).toLocaleDateString() : ''}</span>
@@ -881,10 +881,10 @@ export const DashboardPage = () => {
                       <td className="py-3.5 px-4">
                         <span className={`inline-flex items-center gap-1.5 font-mono text-[11px] font-bold px-3 py-1 rounded-full border shadow-sm ${
                           ci.status === 'valid'
-                            ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
-                            : 'bg-amber-950/80 text-amber-300 border-amber-500/40'
+                            ? 'bg-amber-950/80 text-amber-300 border-amber-500/40'
+                            : 'bg-orange-950/80 text-orange-300 border-orange-500/40'
                         }`}>
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
                           <span>{ci.status === 'valid' ? 'ENTRY GRANTED' : 'REPEATED ENTRY'}</span>
                         </span>
                       </td>
@@ -921,7 +921,7 @@ export const DashboardPage = () => {
       {/* Edit Event Details Modal */}
       {showEditEventModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
-          <div className="bg-[#0b101f] border border-white/15 rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl relative space-y-5">
+          <div className="bg-[#110e1a] border border-white/15 rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl relative space-y-5">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400">
@@ -951,7 +951,7 @@ export const DashboardPage = () => {
                   value={editEventForm.title}
                   onChange={(e) => setEditEventForm(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="e.g. Tech Carnival 2026 / Hackathon Finale"
-                  className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-[#171322] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
                 />
               </div>
 
@@ -963,7 +963,7 @@ export const DashboardPage = () => {
                     value={editEventForm.venue}
                     onChange={(e) => setEditEventForm(prev => ({ ...prev, venue: e.target.value }))}
                     placeholder="e.g. Auditorium Hall A"
-                    className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                    className="w-full bg-[#171322] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
                   />
                 </div>
 
@@ -973,7 +973,7 @@ export const DashboardPage = () => {
                     type="date"
                     value={editEventForm.date}
                     onChange={(e) => setEditEventForm(prev => ({ ...prev, date: e.target.value }))}
-                    className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                    className="w-full bg-[#171322] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
                   />
                 </div>
               </div>
@@ -987,7 +987,7 @@ export const DashboardPage = () => {
                   value={editEventForm.gatesText}
                   onChange={(e) => setEditEventForm(prev => ({ ...prev, gatesText: e.target.value }))}
                   placeholder="e.g. Gate 1 - North VIP, Gate 2 - Main General, Gate 3 - Fast Track"
-                  className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500 font-mono text-[11px]"
+                  className="w-full bg-[#171322] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500 font-mono text-[11px]"
                 />
                 <span className="text-[10px] text-slate-400 mt-1 block">
                   Volunteers at gates will verify passes under these gate names.
@@ -1001,7 +1001,7 @@ export const DashboardPage = () => {
                   value={editEventForm.description}
                   onChange={(e) => setEditEventForm(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="e.g. Official offline entry pass verification for hackathon attendees."
-                  className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-[#171322] border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
                 ></textarea>
               </div>
 
@@ -1030,10 +1030,10 @@ export const DashboardPage = () => {
       {/* Create New Event Modal */}
       {showCreateEventModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
-          <div className="bg-[#0b101f] border border-white/15 rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl relative space-y-5">
+          <div className="bg-[#110e1a] border border-white/15 rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl relative space-y-5">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-teal-400">
+                <div className="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400">
                   <PlusCircle className="w-5 h-5" />
                 </div>
                 <div>
@@ -1060,7 +1060,7 @@ export const DashboardPage = () => {
                   value={newEventForm.title}
                   onChange={(e) => setNewEventForm(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="e.g. Annual Tech Symposium 2026"
-                  className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-teal-500"
+                  className="w-full bg-[#171322] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-rose-500"
                 />
               </div>
 
@@ -1072,7 +1072,7 @@ export const DashboardPage = () => {
                     value={newEventForm.venue}
                     onChange={(e) => setNewEventForm(prev => ({ ...prev, venue: e.target.value }))}
                     placeholder="e.g. Convention Center Hall 2"
-                    className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-teal-500"
+                    className="w-full bg-[#171322] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-rose-500"
                   />
                 </div>
 
@@ -1082,7 +1082,7 @@ export const DashboardPage = () => {
                     type="date"
                     value={newEventForm.date}
                     onChange={(e) => setNewEventForm(prev => ({ ...prev, date: e.target.value }))}
-                    className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-teal-500"
+                    className="w-full bg-[#171322] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-rose-500"
                   />
                 </div>
               </div>
@@ -1096,7 +1096,7 @@ export const DashboardPage = () => {
                   value={newEventForm.gatesText}
                   onChange={(e) => setNewEventForm(prev => ({ ...prev, gatesText: e.target.value }))}
                   placeholder="e.g. Gate 1 - North VIP, Gate 2 - General Entry"
-                  className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-teal-500 font-mono text-[11px]"
+                  className="w-full bg-[#171322] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-rose-500 font-mono text-[11px]"
                 />
               </div>
 
@@ -1107,7 +1107,7 @@ export const DashboardPage = () => {
                   value={newEventForm.description}
                   onChange={(e) => setNewEventForm(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="e.g. Zero-downtime offline verification event."
-                  className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+                  className="w-full bg-[#171322] border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-rose-500"
                 ></textarea>
               </div>
 
@@ -1122,7 +1122,7 @@ export const DashboardPage = () => {
                 <button
                   type="submit"
                   disabled={eventSubmitting}
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white text-xs font-bold shadow-lg shadow-teal-950 transition flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-xs font-bold shadow-lg shadow-rose-950/60 transition flex items-center gap-1.5"
                 >
                   <PlusCircle className="w-3.5 h-3.5" />
                   <span>{eventSubmitting ? 'Creating...' : 'Create Event'}</span>
@@ -1136,10 +1136,10 @@ export const DashboardPage = () => {
       {/* Official Master Event Entry QR Modal */}
       {showEventQrModal && selectedEvent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="bg-[#0b101f] border border-emerald-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative space-y-5 text-center">
+          <div className="bg-[#110e1a] border border-amber-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative space-y-5 text-center">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-2.5 text-left">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
                   <QrCode className="w-6 h-6" />
                 </div>
                 <div>
@@ -1156,21 +1156,21 @@ export const DashboardPage = () => {
             </div>
 
             {/* Event Header Banner */}
-            <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl text-left space-y-1">
-              <div className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider">
+            <div className="p-3 bg-amber-950/40 border border-amber-500/30 rounded-2xl text-left space-y-1">
+              <div className="text-[10px] font-mono text-amber-400 font-bold uppercase tracking-wider">
                 ACTIVE EVENT
               </div>
               <div className="font-extrabold text-white text-base truncate">
                 {selectedEvent.title}
               </div>
               <div className="flex items-center gap-3 text-xs text-slate-300 font-sans">
-                <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-cyan-400" /> {selectedEvent.venue}</span>
+                <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-amber-400" /> {selectedEvent.venue}</span>
                 <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-purple-400" /> {selectedEvent.date}</span>
               </div>
             </div>
 
             {/* Big High-Res QR Code */}
-            <div className="flex flex-col items-center justify-center p-5 bg-white rounded-3xl shadow-2xl mx-auto w-fit border-4 border-emerald-500/30">
+            <div className="flex flex-col items-center justify-center p-5 bg-white rounded-3xl shadow-2xl mx-auto w-fit border-4 border-amber-500/30">
               {eventQrDataUrl ? (
                 <img
                   src={eventQrDataUrl}
@@ -1186,8 +1186,8 @@ export const DashboardPage = () => {
 
             {/* Explanatory Guide */}
             <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 text-xs text-slate-300 text-left space-y-1.5">
-              <div className="font-bold text-emerald-400 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-emerald-400" />
+              <div className="font-bold text-amber-400 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-amber-400" />
                 <span>Kaise use karein:</span>
               </div>
               <p className="text-[11px] leading-relaxed text-slate-300">
@@ -1202,7 +1202,7 @@ export const DashboardPage = () => {
               <a
                 href={eventQrDataUrl}
                 download={`${selectedEvent.title.replace(/\s+/g, '_')}-Official-QR.png`}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 text-white text-xs font-bold shadow-lg shadow-amber-950/60 transition flex items-center justify-center gap-2"
               >
                 <Download className="w-4 h-4" />
                 <span>Download QR PNG</span>

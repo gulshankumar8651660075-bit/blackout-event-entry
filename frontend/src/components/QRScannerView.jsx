@@ -286,7 +286,7 @@ export const QRScannerView = ({
         {/* Top Scanner HUD */}
         <div className="absolute top-0 left-0 right-0 z-20 p-3 bg-gradient-to-b from-black/80 to-transparent flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
             <span className="text-xs font-mono font-bold text-white tracking-wide">{activeGate} SCANNER</span>
           </div>
 
@@ -296,7 +296,7 @@ export const QRScannerView = ({
               className="px-2.5 py-1 rounded-lg bg-black/60 text-slate-300 hover:text-white border border-slate-700/50 flex items-center gap-1.5 text-[11px] font-mono transition"
               title="Flip Rear/Front Camera on Mobile"
             >
-              <RefreshCw className="w-3 h-3 text-cyan-400" />
+              <RefreshCw className="w-3 h-3 text-amber-400" />
               <span>{cameraFacing === 'environment' ? 'Rear' : 'Front'}</span>
             </button>
 
@@ -305,7 +305,7 @@ export const QRScannerView = ({
               className="p-1.5 rounded-lg bg-black/60 text-slate-300 hover:text-white border border-slate-700/50"
               title={audioEnabled ? 'Mute Sound' : 'Enable Sound'}
             >
-              {audioEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
+              {audioEnabled ? <Volume2 className="w-4 h-4 text-amber-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
             </button>
           </div>
         </div>
@@ -316,7 +316,7 @@ export const QRScannerView = ({
 
           {!cameraActive && (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-950/90 z-10 space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-lg shadow-emerald-950">
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-950">
                 <Camera className="w-8 h-8" />
               </div>
               <div>
@@ -348,7 +348,7 @@ export const QRScannerView = ({
                 <button
                   type="button"
                   onClick={() => mobileCameraInputRef.current?.click()}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center gap-2"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 text-white text-xs font-bold shadow-lg shadow-amber-950/60 transition flex items-center gap-2"
                   title="Opens phone camera directly to snap pass photo"
                 >
                   <Camera className="w-4 h-4" />
@@ -361,7 +361,7 @@ export const QRScannerView = ({
                   className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition flex items-center gap-2"
                   title="Stream video feed in browser"
                 >
-                  <RefreshCw className="w-4 h-4 text-cyan-400" />
+                  <RefreshCw className="w-4 h-4 text-amber-400" />
                   <span>Live Video Feed</span>
                 </button>
 
@@ -386,7 +386,7 @@ export const QRScannerView = ({
               <button
                 type="button"
                 onClick={toggleCameraFacing}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-semibold flex items-center gap-1.5 transition"
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-semibold flex items-center gap-1.5 transition"
                 title="Switch between front and back camera"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
@@ -423,10 +423,10 @@ export const QRScannerView = ({
                 type="button"
                 onClick={() => handleScanTrigger(tkt.ticketNumber)}
                 disabled={isProcessing}
-                className="p-2.5 rounded-xl bg-slate-900 hover:bg-emerald-950/60 border border-slate-700 hover:border-emerald-500/50 text-left transition group"
+                className="p-2.5 rounded-xl bg-slate-900 hover:bg-amber-950/60 border border-slate-700 hover:border-amber-500/50 text-left transition group"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono font-bold text-emerald-400 group-hover:text-emerald-300">
+                  <span className="text-[11px] font-mono font-bold text-amber-400 group-hover:text-amber-300">
                     {tkt.ticketNumber}
                   </span>
                   <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
@@ -442,7 +442,7 @@ export const QRScannerView = ({
         ) : (
           <div className="p-3 bg-slate-950 rounded-xl border border-slate-800/80 text-center">
             <p className="text-xs text-slate-400">
-              No passes cached locally yet. Click <span className="text-emerald-400 font-semibold">1. Refresh Cache</span> above or issue passes in the Organiser Portal.
+              No passes cached locally yet. Click <span className="text-amber-400 font-semibold">1. Refresh Cache</span> above or issue passes in the Organiser Portal.
             </p>
           </div>
         )}
@@ -451,7 +451,7 @@ export const QRScannerView = ({
       {/* Manual Code Input Form */}
       <form onSubmit={handleManualSubmit} className="glass-panel p-4 rounded-2xl border border-slate-800 space-y-2">
         <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-          <Keyboard className="w-3.5 h-3.5 text-emerald-400" />
+          <Keyboard className="w-3.5 h-3.5 text-amber-400" />
           <span>Manual Ticket Check-in (Type e.g. 1001 or TKT-1001):</span>
         </label>
         <div className="flex gap-2">
@@ -460,12 +460,12 @@ export const QRScannerView = ({
             value={manualCode}
             onChange={(e) => setManualCode(e.target.value)}
             placeholder="Type pass serial number (e.g. TKT-1001)"
-            className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-mono text-white focus:outline-none focus:border-emerald-500"
+            className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-mono text-white focus:outline-none focus:border-amber-500"
           />
           <button
             type="submit"
             disabled={!manualCode.trim() || isProcessing}
-            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-emerald-950"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 disabled:opacity-50 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-amber-950"
           >
             {isProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span>Verify &amp; Enter</span>}
           </button>
@@ -477,9 +477,9 @@ export const QRScannerView = ({
         <div
           className={`p-5 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             lastScanResult.status === 'valid'
-              ? 'bg-emerald-950/90 border-emerald-500/80 shadow-2xl shadow-emerald-950/50 text-emerald-200'
-              : lastScanResult.status === 'locally_repeated'
               ? 'bg-amber-950/90 border-amber-500/80 shadow-2xl shadow-amber-950/50 text-amber-200'
+              : lastScanResult.status === 'locally_repeated'
+              ? 'bg-orange-950/90 border-orange-500/80 shadow-2xl shadow-orange-950/50 text-orange-200'
               : lastScanResult.status === 'cancelled'
               ? 'bg-purple-950/90 border-purple-500/80 shadow-2xl shadow-purple-950/50 text-purple-200'
               : 'bg-rose-950/90 border-rose-500/80 shadow-2xl shadow-rose-950/50 text-rose-200'
@@ -487,8 +487,8 @@ export const QRScannerView = ({
         >
           <div className="flex items-start gap-4">
             <div className="p-3 rounded-2xl bg-black/40 border border-white/10 shrink-0">
-              {lastScanResult.status === 'valid' && <CheckCircle className="w-8 h-8 text-emerald-400" />}
-              {lastScanResult.status === 'locally_repeated' && <AlertTriangle className="w-8 h-8 text-amber-400 animate-bounce" />}
+              {lastScanResult.status === 'valid' && <CheckCircle className="w-8 h-8 text-amber-400" />}
+              {lastScanResult.status === 'locally_repeated' && <AlertTriangle className="w-8 h-8 text-orange-400 animate-bounce" />}
               {lastScanResult.status === 'cancelled' && <XCircle className="w-8 h-8 text-purple-400" />}
               {lastScanResult.status === 'invalid' && <XCircle className="w-8 h-8 text-rose-400" />}
             </div>
@@ -516,13 +516,13 @@ export const QRScannerView = ({
                     <span className="text-xl font-extrabold text-white">
                       {lastScanResult.ticket.attendeeName}
                     </span>
-                    <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase">
+                    <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
                       {lastScanResult.ticket.tier || 'VIP'} TIER
                     </span>
                   </div>
                   <div className="text-xs font-mono text-slate-300 flex items-center justify-between">
                     <span>Pass ID: <strong className="text-white font-bold">{lastScanResult.ticket.ticketNumber}</strong></span>
-                    <span>Gate: <strong className="text-emerald-400 font-bold">{activeGate}</strong></span>
+                    <span>Gate: <strong className="text-amber-400 font-bold">{activeGate}</strong></span>
                   </div>
                   <div className="text-[11px] font-mono text-slate-400">
                     {lastScanResult.ticket.attendeeEmail || 'Verified Attendee'}
@@ -540,7 +540,7 @@ export const QRScannerView = ({
                 </span>
                 <button
                   onClick={handleNextScan}
-                  className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition font-mono flex items-center gap-1.5 shadow-md shadow-emerald-950"
+                  className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-bold transition font-mono flex items-center gap-1.5 shadow-md shadow-amber-950"
                 >
                   <span>Ready for Next Scan</span>
                   <ArrowRight className="w-3.5 h-3.5" />

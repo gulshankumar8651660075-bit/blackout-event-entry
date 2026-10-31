@@ -51,13 +51,13 @@ export const NetworkStatusBadge = ({ onSyncTrigger, isSyncing = false }) => {
       <div
         className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-300 ${
           effectiveOnline
-            ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-400'
+            ? 'bg-amber-950/60 border-amber-500/40 text-amber-300 shadow-sm shadow-amber-950'
             : 'bg-rose-950/70 border-rose-500/50 text-rose-300 animate-pulse'
         }`}
       >
         {effectiveOnline ? (
           <>
-            <Wifi className="w-3.5 h-3.5 text-emerald-400" />
+            <Wifi className="w-3.5 h-3.5 text-amber-400" />
             <span>ONLINE</span>
           </>
         ) : (

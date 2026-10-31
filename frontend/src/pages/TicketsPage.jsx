@@ -73,17 +73,17 @@ const PassCardItem = ({ ticket, onPreview, onDelete, onTestScan, activeGate }) =
   };
 
   return (
-    <div className="glass-card rounded-3xl border border-white/10 overflow-hidden flex flex-col justify-between hover:border-emerald-500/50 transition-all duration-300 group shadow-xl relative">
+    <div className="glass-card rounded-3xl border border-white/10 overflow-hidden flex flex-col justify-between hover:border-amber-500/50 transition-all duration-300 group shadow-xl relative">
       
       {/* Top Holographic Banner */}
-      <div className="p-3.5 bg-gradient-to-r from-indigo-950/80 via-purple-950/80 to-slate-950/90 border-b border-white/10 flex items-center justify-between">
+      <div className="p-3.5 bg-gradient-to-r from-purple-950/80 via-rose-950/80 to-slate-950/90 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <QrCode className="w-3.5 h-3.5 text-emerald-400" />
-          <span className="text-[10px] font-mono text-emerald-300 font-bold uppercase tracking-widest">
+          <QrCode className="w-3.5 h-3.5 text-amber-400" />
+          <span className="text-[10px] font-mono text-amber-300 font-bold uppercase tracking-widest">
             OFFICIAL EVENT PASS
           </span>
         </div>
-        <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono font-extrabold uppercase">
+        <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-extrabold uppercase">
           {ticket.tier || 'VIP'}
         </span>
       </div>
@@ -92,7 +92,7 @@ const PassCardItem = ({ ticket, onPreview, onDelete, onTestScan, activeGate }) =
       <div className="p-5 flex flex-col items-center justify-center text-center bg-black/25">
         <div 
           onClick={() => onPreview(ticket)} 
-          className="p-3 bg-white rounded-2xl shadow-2xl border border-white/40 cursor-pointer hover:scale-105 transition-transform group-hover:glow-emerald"
+          className="p-3 bg-white rounded-2xl shadow-2xl border border-white/40 cursor-pointer hover:scale-105 transition-transform group-hover:glow-gold"
           title="Click to view &amp; print full high-res pass"
         >
           {qrUrl ? (
@@ -106,7 +106,7 @@ const PassCardItem = ({ ticket, onPreview, onDelete, onTestScan, activeGate }) =
 
         <div className="mt-3">
           <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">Pass Serial</span>
-          <div className="font-mono font-extrabold text-emerald-400 text-lg tracking-wider">
+          <div className="font-mono font-extrabold text-amber-400 text-lg tracking-wider">
             {ticket.ticketNumber}
           </div>
         </div>
@@ -118,12 +118,12 @@ const PassCardItem = ({ ticket, onPreview, onDelete, onTestScan, activeGate }) =
         <p className="text-xs text-slate-400 truncate">{ticket.attendeeEmail || 'Verified Event Attendee'}</p>
         
         {ticket.status === 'checked_in' ? (
-          <div className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-0.5 rounded-full mt-1">
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold text-amber-400 bg-amber-950/60 border border-amber-500/30 px-2.5 py-0.5 rounded-full mt-1">
             <CheckCircle className="w-3 h-3" />
             <span>Checked In at {ticket.firstCheckIn?.gateId || activeGate || 'Gate A'}</span>
           </div>
         ) : (
-          <div className="inline-flex items-center gap-1.5 text-[11px] font-mono text-cyan-400 bg-cyan-950/40 border border-cyan-500/20 px-2.5 py-0.5 rounded-full mt-1">
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-mono text-purple-400 bg-purple-950/40 border border-purple-500/20 px-2.5 py-0.5 rounded-full mt-1">
             <ShieldCheck className="w-3 h-3" />
             <span>Ready for Gate Scan</span>
           </div>
@@ -136,7 +136,7 @@ const PassCardItem = ({ ticket, onPreview, onDelete, onTestScan, activeGate }) =
           onClick={handleScanClick}
           disabled={scanning}
           title="Simulate instant entry scan into gate"
-          className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950"
+          className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-amber-950/60"
         >
           <Zap className={`w-3.5 h-3.5 ${scanning ? 'animate-spin' : ''}`} />
           <span>{scanning ? 'Verifying...' : '⚡ Test Scan'}</span>
@@ -147,7 +147,7 @@ const PassCardItem = ({ ticket, onPreview, onDelete, onTestScan, activeGate }) =
           className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition"
           title="Download PNG QR pass"
         >
-          <Download className="w-3.5 h-3.5 text-cyan-400" />
+          <Download className="w-3.5 h-3.5 text-amber-400" />
         </button>
 
         <button
@@ -504,8 +504,8 @@ export const TicketsPage = () => {
       {/* Header Banner */}
       <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden shadow-2xl">
         <div className="relative z-10 space-y-1">
-          <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 font-bold uppercase tracking-wider mb-1">
-            <QrCode className="w-3.5 h-3.5 text-emerald-400" />
+          <div className="flex items-center gap-2 text-xs font-mono text-amber-400 font-bold uppercase tracking-wider mb-1">
+            <QrCode className="w-3.5 h-3.5 text-amber-400" />
             <span>Attendee Passes &amp; QR Manifest</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
@@ -519,7 +519,7 @@ export const TicketsPage = () => {
         <div className="relative z-10 flex items-center gap-3 flex-wrap">
           <button
             onClick={handleOpenMasterQr}
-            className="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 hover:from-emerald-500 hover:to-cyan-400 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center gap-2 ring-2 ring-emerald-500/40"
+            className="px-5 py-3 rounded-xl bg-gradient-to-r from-amber-600 via-orange-500 to-rose-500 hover:from-amber-500 hover:to-rose-400 text-white text-xs font-bold shadow-lg shadow-amber-950/60 transition flex items-center gap-2 ring-2 ring-amber-500/40"
             title="Show Master Event QR for Volunteers to scan with phone"
           >
             <QrCode className="w-4 h-4 text-white" />
@@ -546,20 +546,20 @@ export const TicketsPage = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search attendee name or pass serial..."
-              className="w-full bg-[#0a0f1d] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-sans"
+              className="w-full bg-[#110e1a] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 font-sans"
             />
           </div>
 
           {events.length > 0 && (
-            <div className="hidden md:flex items-center gap-2 bg-[#0a0f1d] border border-white/10 rounded-xl px-3 py-2 shrink-0">
-              <span className="text-[11px] font-mono text-emerald-400 font-bold uppercase tracking-wider">Event:</span>
+            <div className="hidden md:flex items-center gap-2 bg-[#110e1a] border border-white/10 rounded-xl px-3 py-2 shrink-0">
+              <span className="text-[11px] font-mono text-amber-400 font-bold uppercase tracking-wider">Event:</span>
               <select
                 value={selectedEventId}
                 onChange={(e) => setSelectedEventId(e.target.value)}
                 className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer max-w-[220px] truncate"
               >
                 {events.map(ev => (
-                  <option key={ev.id} value={ev.id} className="bg-[#0a0f1d] text-white">
+                  <option key={ev.id} value={ev.id} className="bg-[#110e1a] text-white">
                     {ev.title}
                   </option>
                 ))}
@@ -581,7 +581,7 @@ export const TicketsPage = () => {
           )}
 
           <span className="text-xs font-mono text-slate-400 font-semibold">Total Passes:</span>
-          <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300">
+          <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300">
             {tickets.length} Registered
           </span>
         </div>
@@ -590,12 +590,12 @@ export const TicketsPage = () => {
       {/* Passes Grid: Real Live QR Codes visible on every card! */}
       {loading && tickets.length === 0 ? (
         <div className="py-20 text-center space-y-3">
-          <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
           <p className="text-xs font-mono text-slate-400">Loading attendee passes...</p>
         </div>
       ) : filteredTickets.length === 0 ? (
         <div className="glass-panel p-12 rounded-3xl border border-white/10 text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
             <Ticket className="w-7 h-7" />
           </div>
           <div>
@@ -607,7 +607,7 @@ export const TicketsPage = () => {
           {!search && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition inline-flex items-center gap-2 shadow-lg shadow-emerald-950"
+              className="px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition inline-flex items-center gap-2 shadow-lg shadow-amber-950"
             >
               <Plus className="w-4 h-4" />
               <span>Issue First Pass</span>
@@ -632,10 +632,10 @@ export const TicketsPage = () => {
       {/* Modal 1: Issue New Pass Modal with 1-Click Presets */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="w-full max-w-md bg-[#0e1629] border border-white/15 rounded-3xl p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
+          <div className="w-full max-w-md bg-[#110e1a] border border-white/15 rounded-3xl p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-center gap-2">
-                <Ticket className="w-5 h-5 text-emerald-400" />
+                <Ticket className="w-5 h-5 text-amber-400" />
                 <h3 className="font-bold text-base text-white">Issue Attendee Pass</h3>
               </div>
               <button
@@ -655,14 +655,14 @@ export const TicketsPage = () => {
                 <button
                   type="button"
                   onClick={() => handleApplyPreset('Gulu Gupta', 'VIP Access')}
-                  className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-300 hover:text-emerald-300 text-[11px] font-semibold border border-white/10 transition"
+                  className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 text-[11px] font-semibold border border-white/10 transition"
                 >
                   + Gulu Gupta (VIP)
                 </button>
                 <button
                   type="button"
                   onClick={() => handleApplyPreset('Rahul Verma', 'General')}
-                  className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 text-[11px] font-semibold border border-white/10 transition"
+                  className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 text-[11px] font-semibold border border-white/10 transition"
                 >
                   + Rahul Verma (Gen)
                 </button>
@@ -687,7 +687,7 @@ export const TicketsPage = () => {
                   value={formData.attendeeName}
                   onChange={(e) => setFormData({ ...formData, attendeeName: e.target.value })}
                   placeholder="e.g. Gulu Gupta"
-                  className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-sans"
+                  className="w-full bg-[#171322] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 font-sans"
                 />
               </div>
 
@@ -700,7 +700,7 @@ export const TicketsPage = () => {
                   value={formData.attendeeEmail}
                   onChange={(e) => setFormData({ ...formData, attendeeEmail: e.target.value })}
                   placeholder="e.g. gulugupta@gmail.com"
-                  className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-sans"
+                  className="w-full bg-[#171322] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 font-sans"
                 />
               </div>
 
@@ -712,7 +712,7 @@ export const TicketsPage = () => {
                   <select
                     value={formData.tier}
                     onChange={(e) => setFormData({ ...formData, tier: e.target.value })}
-                    className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-[#171322] border border-white/15 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
                   >
                     <option value="VIP Access">VIP Access</option>
                     <option value="General">General Admission</option>
@@ -730,7 +730,7 @@ export const TicketsPage = () => {
                     value={formData.customSerial}
                     onChange={(e) => setFormData({ ...formData, customSerial: e.target.value })}
                     placeholder="Auto: TKT-1001"
-                    className="w-full bg-[#070b16] border border-white/15 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
+                    className="w-full bg-[#171322] border border-white/15 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
                   />
                 </div>
               </div>
@@ -746,7 +746,7 @@ export const TicketsPage = () => {
                 <button
                   type="submit"
                   disabled={creating}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-emerald-950"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 text-white text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-amber-950/60"
                 >
                   {creating ? 'Generating QR...' : 'Generate & Issue Pass'}
                 </button>
@@ -759,12 +759,12 @@ export const TicketsPage = () => {
       {/* Modal 2: High-Resolution Printable QR Pass Preview */}
       {activePreviewTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-          <div className="w-full max-w-sm bg-[#0e1629] border border-white/15 rounded-3xl overflow-hidden shadow-2xl space-y-3 animate-in fade-in zoom-in-95">
+          <div className="w-full max-w-sm bg-[#110e1a] border border-white/15 rounded-3xl overflow-hidden shadow-2xl space-y-3 animate-in fade-in zoom-in-95">
             
             {/* Top Pass Brand */}
             <div className="p-4 bg-black/50 border-b border-white/10 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <QrCode className="w-4 h-4 text-emerald-400" />
+                <QrCode className="w-4 h-4 text-amber-400" />
                 <span className="font-mono font-bold text-xs text-white uppercase tracking-wider">Official Event Pass</span>
               </div>
               <button
@@ -785,7 +785,7 @@ export const TicketsPage = () => {
 
               <div>
                 <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">Pass Serial</span>
-                <h3 className="font-mono font-extrabold text-2xl text-emerald-400">
+                <h3 className="font-mono font-extrabold text-2xl text-amber-400">
                   {activePreviewTicket.ticketNumber}
                 </h3>
               </div>
@@ -793,7 +793,7 @@ export const TicketsPage = () => {
               <div className="space-y-0.5">
                 <h4 className="text-lg font-bold text-white">{activePreviewTicket.attendeeName}</h4>
                 <p className="text-xs text-slate-400">{activePreviewTicket.attendeeEmail || 'Verified Attendee'}</p>
-                <span className="inline-block mt-1 text-xs font-mono font-bold px-3 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <span className="inline-block mt-1 text-xs font-mono font-bold px-3 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
                   {activePreviewTicket.tier} TIER
                 </span>
               </div>
@@ -804,7 +804,7 @@ export const TicketsPage = () => {
               <button
                 type="button"
                 onClick={() => handleTestScan(activePreviewTicket)}
-                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950"
+                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-lg shadow-amber-950/60"
               >
                 <Zap className="w-3.5 h-3.5" />
                 <span>⚡ Test Scan Pass Into Gate</span>
@@ -815,7 +815,7 @@ export const TicketsPage = () => {
                   onClick={downloadQrImage}
                   className="flex-1 py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1.5 border border-white/10"
                 >
-                  <Download className="w-3.5 h-3.5 text-cyan-400" />
+                  <Download className="w-3.5 h-3.5 text-amber-400" />
                   <span>Download Pass (PNG)</span>
                 </button>
 
@@ -837,10 +837,10 @@ export const TicketsPage = () => {
       {/* Master Event Entry QR Modal */}
       {showMasterEventQr && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="bg-[#0b101f] border border-emerald-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative space-y-5 text-center">
+          <div className="bg-[#110e1a] border border-amber-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative space-y-5 text-center">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-2.5 text-left">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
                   <QrCode className="w-6 h-6" />
                 </div>
                 <div>
@@ -856,7 +856,7 @@ export const TicketsPage = () => {
               </button>
             </div>
 
-            <div className="flex flex-col items-center justify-center p-5 bg-white rounded-3xl shadow-2xl mx-auto w-fit border-4 border-emerald-500/30">
+            <div className="flex flex-col items-center justify-center p-5 bg-white rounded-3xl shadow-2xl mx-auto w-fit border-4 border-amber-500/30">
               {masterQrUrl ? (
                 <img src={masterQrUrl} alt="Event Entry QR" className="w-56 h-56 block rounded-xl" />
               ) : (
@@ -867,7 +867,7 @@ export const TicketsPage = () => {
             </div>
 
             <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 text-xs text-slate-300 text-left space-y-1">
-              <span className="font-bold text-emerald-400">⚡ Single Master QR for Event:</span>
+              <span className="font-bold text-amber-400">⚡ Single Master QR for Event:</span>
               <p className="text-[11px] leading-relaxed text-slate-300">
                 Any volunteer or attendee can scan this QR code. Each scan opens the entry form, allows the volunteer to enter their details, and adds them to the live entry ledger.
               </p>
@@ -877,7 +877,7 @@ export const TicketsPage = () => {
               <a
                 href={masterQrUrl}
                 download="Blackout-Master-Event-QR.png"
-                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-bold shadow-lg shadow-emerald-950 transition flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 text-white text-xs font-bold shadow-lg shadow-amber-950/60 transition flex items-center justify-center gap-2"
               >
                 <Download className="w-4 h-4" />
                 <span>Download QR PNG</span>
