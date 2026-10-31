@@ -115,7 +115,17 @@ const PassCardItem = ({ ticket, onPreview, onDelete, onTestScan, activeGate }) =
       {/* Attendee Info */}
       <div className="px-5 pb-4 space-y-1">
         <h4 className="font-extrabold text-white text-base truncate">{ticket.attendeeName}</h4>
-        <p className="text-xs text-slate-400 truncate">{ticket.attendeeEmail || 'Verified Event Attendee'}</p>
+        <div className="flex items-center gap-2 text-xs text-slate-400 truncate flex-wrap">
+          {(ticket.attendeePhone || ticket.phone) && (
+            <span className="text-amber-300 font-mono font-medium">{ticket.attendeePhone || ticket.phone}</span>
+          )}
+          {ticket.attendeeEmail && <span>&bull; {ticket.attendeeEmail}</span>}
+        </div>
+        {(ticket.idNote || ticket.note) && (
+          <p className="text-[10px] text-amber-400/80 truncate font-mono bg-amber-950/30 px-2 py-0.5 rounded border border-amber-500/20 w-fit">
+            {ticket.idNote || ticket.note}
+          </p>
+        )}
         
         {ticket.status === 'checked_in' ? (
           <div className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold text-amber-400 bg-amber-950/60 border border-amber-500/30 px-2.5 py-0.5 rounded-full mt-1">
@@ -187,7 +197,9 @@ export const TicketsPage = () => {
   // New ticket form state
   const [formData, setFormData] = useState({
     attendeeName: '',
+    attendeePhone: '',
     attendeeEmail: '',
+    idNote: '',
     tier: 'VIP Access',
     customSerial: ''
   });
@@ -326,7 +338,9 @@ export const TicketsPage = () => {
       const res = await api.createTicket({
         eventId: selectedEventId,
         attendeeName: formData.attendeeName.trim(),
+        attendeePhone: formData.attendeePhone.trim(),
         attendeeEmail: formData.attendeeEmail.trim(),
+        idNote: formData.idNote.trim(),
         tier: formData.tier,
         ticketNumber: formData.customSerial.trim() || undefined
       });
@@ -346,7 +360,7 @@ export const TicketsPage = () => {
 
         setTickets(prev => [res.ticket, ...prev.filter(t => t.id !== res.ticket.id)]);
         setShowCreateModal(false);
-        setFormData({ attendeeName: '', attendeeEmail: '', tier: 'VIP Access', customSerial: '' });
+        setFormData({ attendeeName: '', attendeePhone: '', attendeeEmail: '', idNote: '', tier: 'VIP Access', customSerial: '' });
         
         // Show pass preview modal
         setActivePreviewTicket(res.ticket);
@@ -359,10 +373,12 @@ export const TicketsPage = () => {
   };
 
   // Instant Preset Chip Click (e.g. "+ Gulu Gupta")
-  const handleApplyPreset = (name, tier) => {
+  const handleApplyPreset = (name, tier, phone = '9876543210', idNote = 'Govt ID Verified') => {
     setFormData({
       attendeeName: name,
+      attendeePhone: phone,
       attendeeEmail: `${name.toLowerCase().replace(/\s+/g, '')}@example.com`,
+      idNote: idNote,
       tier: tier,
       customSerial: ''
     });
@@ -428,12 +444,23 @@ export const TicketsPage = () => {
   // 1-Click Immediate Test Scan into Active Gate
   const handleTestScan = async (ticket) => {
     try {
+      const attName = ticket.attendeeName || 'Attendee';
+      const attPhone = ticket.attendeePhone || ticket.phone || '';
+      const attEmail = ticket.attendeeEmail || ticket.email || '';
+      const attNote = ticket.idNote || ticket.note || '';
+      const attTier = ticket.tier || 'VIP Access';
+      const evId = ticket.eventId || selectedEventId;
+
       const res = await offlineDbService.recordScan({
         ticket,
         deviceId,
         gateId: activeGate || 'Gate A',
         volunteerName: user ? user.name : 'Lead Organiser',
-        eventId: ticket.eventId || selectedEventId
+        eventId: evId,
+        attendeeName: attName,
+        phone: attPhone,
+        email: attEmail,
+        idNote: attNote
       });
 
       // Also trigger cloud sync in background if online
@@ -442,10 +469,15 @@ export const TicketsPage = () => {
           deviceId,
           gateId: activeGate || 'Gate A',
           entries: [{
-            entryId: 'scan-' + Date.now(),
+            entryId: res.entryId || ('scan-' + Date.now()),
             ticketNumber: ticket.ticketNumber,
             ticketId: ticket.id,
-            eventId: ticket.eventId,
+            attendeeName: attName,
+            phone: attPhone,
+            email: attEmail,
+            idNote: attNote,
+            tier: attTier,
+            eventId: evId,
             gateId: activeGate || 'Gate A',
             volunteerName: user ? user.name : 'Lead Organiser',
             scannedAt: new Date().toISOString()
@@ -471,7 +503,7 @@ export const TicketsPage = () => {
         return t;
       }));
 
-      alert(`✅ Pass ${ticket.ticketNumber} (${ticket.attendeeName}) scanned successfully into ${activeGate || 'Gate A'}!\nStatus: ENTRY GRANTED\n\nCheck the Overview Dashboard to see this entry in the live ledger!`);
+      alert(`✅ Pass ${ticket.ticketNumber} (${attName}) scanned successfully into ${activeGate || 'Gate A'}!\nStatus: ENTRY GRANTED\n\nCheck the Overview Dashboard to see this entry in the live ledger!`);
     } catch (err) {
       alert('Scan error: ' + err.message);
     }
@@ -654,21 +686,21 @@ export const TicketsPage = () => {
               <div className="flex flex-wrap gap-1.5">
                 <button
                   type="button"
-                  onClick={() => handleApplyPreset('Gulu Gupta', 'VIP Access')}
+                  onClick={() => handleApplyPreset('Gulu Gupta', 'VIP Access', '9876543210', 'Aadhaar Verified')}
                   className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 text-[11px] font-semibold border border-white/10 transition"
                 >
                   + Gulu Gupta (VIP)
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleApplyPreset('Rahul Verma', 'General')}
+                  onClick={() => handleApplyPreset('Rahul Verma', 'General', '9812345678', 'Student ID #1042')}
                   className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 text-[11px] font-semibold border border-white/10 transition"
                 >
                   + Rahul Verma (Gen)
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleApplyPreset('Priya Sharma', 'VIP Access')}
+                  onClick={() => handleApplyPreset('Priya Sharma', 'VIP Access', '9988776655', 'VIP Guest Pass')}
                   className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-purple-500/20 text-slate-300 hover:text-purple-300 text-[11px] font-semibold border border-white/10 transition"
                 >
                   + Priya Sharma (VIP)
@@ -691,15 +723,43 @@ export const TicketsPage = () => {
                 />
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Mobile Number (Optional)
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.attendeePhone}
+                    onChange={(e) => setFormData({ ...formData, attendeePhone: e.target.value })}
+                    placeholder="e.g. 9876543210"
+                    className="w-full bg-[#171322] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Email Address (Optional)
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.attendeeEmail}
+                    onChange={(e) => setFormData({ ...formData, attendeeEmail: e.target.value })}
+                    placeholder="e.g. gulugupta@gmail.com"
+                    className="w-full bg-[#171322] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 font-sans"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Email Address (Optional)
+                  ID Remark / Verification Proof (Optional)
                 </label>
                 <input
-                  type="email"
-                  value={formData.attendeeEmail}
-                  onChange={(e) => setFormData({ ...formData, attendeeEmail: e.target.value })}
-                  placeholder="e.g. gulugupta@gmail.com"
+                  type="text"
+                  value={formData.idNote}
+                  onChange={(e) => setFormData({ ...formData, idNote: e.target.value })}
+                  placeholder="e.g. Aadhaar Verified, Student ID #204, VIP Delegate"
                   className="w-full bg-[#171322] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 font-sans"
                 />
               </div>

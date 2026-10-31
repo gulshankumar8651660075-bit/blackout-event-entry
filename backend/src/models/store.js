@@ -147,7 +147,9 @@ class DataStore {
       ticketNumber,
       eventId: ticketData.eventId,
       attendeeName: ticketData.attendeeName,
-      attendeeEmail: ticketData.attendeeEmail || '',
+      attendeePhone: ticketData.attendeePhone || ticketData.phone || '',
+      attendeeEmail: ticketData.attendeeEmail || ticketData.email || '',
+      idNote: ticketData.idNote || ticketData.note || '',
       tier: ticketData.tier || 'General',
       qrPayload,
       status: 'issued', // 'issued', 'checked_in', 'cancelled', 'conflict'
@@ -272,10 +274,10 @@ class DataStore {
         ticketId: ticket.id,
         ticketNumber: ticket.ticketNumber,
         attendeeName: entry.attendeeName || ticket.attendeeName || 'Attendee',
-        phone: entry.phone || ticket.attendeePhone || '',
-        email: entry.email || ticket.attendeeEmail || '',
-        idNote: entry.idNote || '',
-        tier: entry.tier || ticket.tier || 'VIP',
+        phone: entry.phone || ticket.attendeePhone || ticket.phone || '',
+        email: entry.email || ticket.attendeeEmail || ticket.email || '',
+        idNote: entry.idNote || ticket.idNote || ticket.note || '',
+        tier: entry.tier || ticket.tier || 'VIP Access',
         eventId: ticket.eventId || eventId || 'event-blackout-2026-main',
         deviceId: deviceId || deviceMeta.deviceId || 'Unknown Device',
         gateId: gateId || 'Gate A',
@@ -291,6 +293,8 @@ class DataStore {
       if (entry.phone) ticket.attendeePhone = entry.phone;
       if (entry.email) ticket.attendeeEmail = entry.email;
       if (entry.attendeeName) ticket.attendeeName = entry.attendeeName;
+      if (entry.idNote) ticket.idNote = entry.idNote;
+      if (entry.tier) ticket.tier = entry.tier;
 
       db.checkIns.push(newCheckIn);
 

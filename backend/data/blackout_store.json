@@ -15,6 +15,22 @@
       "password": "$2a$10$7PTyCDRFFcnM6c5A.OYVqe2wpDrKR04CBGSgu7caWJ.LC2WWxVjni",
       "role": "volunteer",
       "createdAt": "2026-10-29T14:37:56.382Z"
+    },
+    {
+      "id": "645329b3-05c6-4459-bac9-184321dcc9c8",
+      "name": "Gulshan Kumar",
+      "email": "gulshankumar8651660075@gmail.com",
+      "password": "$2a$10$Wwyyuy2hodTtYTC/dNrD7O1nYrvaYFdkf2ucupNmit8dPI9MZGMde",
+      "role": "organizer",
+      "createdAt": "2026-10-31T06:00:45.851Z"
+    },
+    {
+      "id": "42e4e064-9b92-45bf-9020-ee126bb993e2",
+      "name": "Gulshan kumar",
+      "email": "gulshankumar6564@gmail.com",
+      "password": "$2a$10$I0hDHP7w9j9hP8BPuEqmRO7iv.6AFetsOfz5JDZDnNNc7W8GZQVR.",
+      "role": "organizer",
+      "createdAt": "2026-10-31T20:56:26.139Z"
     }
   ],
   "events": [
@@ -32,9 +48,129 @@
       ],
       "status": "active",
       "createdAt": "2026-10-29T18:00:00.000Z"
+    },
+    {
+      "id": "46ce1474-de19-44aa-a53d-5c83f0565871",
+      "title": "Gulshan Kumar's Event",
+      "description": "",
+      "date": "2026-10-31",
+      "venue": "Main Arena",
+      "organizerId": "645329b3-05c6-4459-bac9-184321dcc9c8",
+      "gates": [
+        "Gate A - North VIP",
+        "Gate B - South General",
+        "Gate C - Fast Track"
+      ],
+      "status": "active",
+      "createdAt": "2026-10-31T06:00:45.963Z"
+    },
+    {
+      "id": "b939dbc0-8a41-480a-a2cd-a6de3d4f41aa",
+      "title": "Gulshan kumar's Event",
+      "description": "",
+      "date": "2026-10-31",
+      "venue": "Main Arena",
+      "organizerId": "42e4e064-9b92-45bf-9020-ee126bb993e2",
+      "gates": [
+        "Gate A - North VIP",
+        "Gate B - South General",
+        "Gate C - Fast Track"
+      ],
+      "status": "active",
+      "createdAt": "2026-10-31T20:56:26.277Z"
     }
   ],
-  "tickets": [],
-  "checkIns": [],
+  "tickets": [
+    {
+      "id": "4b697972-7c99-49ad-81f0-77de94f3da17",
+      "ticketNumber": "GUL-456",
+      "eventId": "46ce1474-de19-44aa-a53d-5c83f0565871",
+      "attendeeName": "Dance",
+      "attendeePhone": "9876543210",
+      "attendeeEmail": "gulshankuamr@gmail.com",
+      "idNote": "Govt ID Verified",
+      "tier": "General",
+      "qrPayload": "{\"tkt\":\"GUL-456\",\"eid\":\"46ce1474-de19-44aa-a53d-5c83f0565871\",\"att\":\"Dance\",\"tok\":\"c0474950\"}",
+      "status": "issued",
+      "firstCheckIn": null,
+      "checkInCount": 0,
+      "createdAt": "2026-10-31T06:03:04.618Z"
+    },
+    {
+      "id": "7a6e7e88-0370-4561-a4f5-00df2f0c157c",
+      "ticketNumber": "TKT-1001",
+      "eventId": "event-main-01",
+      "attendeeName": "Gulshan kumar",
+      "attendeePhone": "07667389277",
+      "attendeeEmail": "gulshankumar8651660075@gmail.com",
+      "idNote": "6616",
+      "tier": "General",
+      "qrPayload": "{\"tkt\":\"TKT-1001\",\"eid\":\"event-main-01\",\"att\":\"Simran Kaur\",\"tok\":\"f731f203\"}",
+      "status": "checked_in",
+      "firstCheckIn": {
+        "gateId": "Gate A",
+        "scannedAt": "2026-10-31T20:57:17.094Z",
+        "volunteerName": "Gulshan kumar",
+        "deviceId": "DEV-58WOWX"
+      },
+      "checkInCount": 2,
+      "createdAt": "2026-10-31T12:46:23.825Z"
+    },
+    {
+      "id": "f148806b-9bf3-4580-92d8-db2a4c00059d",
+      "ticketNumber": "TKT-1001",
+      "eventId": "b939dbc0-8a41-480a-a2cd-a6de3d4f41aa",
+      "attendeeName": "Gulshan kumar",
+      "attendeePhone": "07667389277",
+      "attendeeEmail": "gulshankumar8651660075@gmail.com",
+      "idNote": "6616",
+      "tier": "General",
+      "qrPayload": "{\"tkt\":\"TKT-1001\",\"eid\":\"b939dbc0-8a41-480a-a2cd-a6de3d4f41aa\",\"att\":\"Gulshan kumar\",\"tok\":\"4964d2b6\"}",
+      "status": "issued",
+      "firstCheckIn": null,
+      "checkInCount": 0,
+      "createdAt": "2026-10-31T20:57:14.079Z"
+    }
+  ],
+  "checkIns": [
+    {
+      "entryId": "sync-enrich-1793450783827",
+      "ticketId": "7a6e7e88-0370-4561-a4f5-00df2f0c157c",
+      "ticketNumber": "TKT-1001",
+      "attendeeName": "Simran Kaur",
+      "phone": "9812345678",
+      "email": "simran@example.com",
+      "idNote": "College ID #551",
+      "tier": "VIP Access",
+      "eventId": "event-main-01",
+      "deviceId": "DEV-TEST",
+      "gateId": "Gate B",
+      "volunteerName": "Gate Volunteer",
+      "volunteerId": null,
+      "scannedAt": "2026-10-31T12:46:23.827Z",
+      "syncedAt": "2026-10-31T12:46:23.828Z",
+      "offlineSync": true,
+      "status": "valid"
+    },
+    {
+      "entryId": "8eb93366-49a7-4d72-92a0-add7284d4b09",
+      "ticketId": "7a6e7e88-0370-4561-a4f5-00df2f0c157c",
+      "ticketNumber": "TKT-1001",
+      "attendeeName": "Gulshan kumar",
+      "phone": "07667389277",
+      "email": "gulshankumar8651660075@gmail.com",
+      "idNote": "6616",
+      "tier": "General",
+      "eventId": "event-main-01",
+      "deviceId": "DEV-58WOWX",
+      "gateId": "Gate A",
+      "volunteerName": "Gulshan kumar",
+      "volunteerId": null,
+      "scannedAt": "2026-10-31T20:57:17.094Z",
+      "syncedAt": "2026-10-31T20:57:17.137Z",
+      "offlineSync": true,
+      "status": "valid"
+    }
+  ],
   "conflicts": []
 }

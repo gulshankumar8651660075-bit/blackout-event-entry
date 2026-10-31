@@ -50,7 +50,7 @@ function writeLocalDb(data) {
   try {
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
   } catch (err) {
-    // If running in restricted serverless environment, memoryData stays valid in memory
+    console.warn('writeLocalDb file write notice:', err.message);
   }
 }
 

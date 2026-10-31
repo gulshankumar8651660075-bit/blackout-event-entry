@@ -29,6 +29,7 @@ import {
   Mail,
   FileText,
   UserCheck,
+  Eye,
   Edit3,
   PlusCircle,
   X,
@@ -45,6 +46,7 @@ export const DashboardPage = () => {
   const [conflicts, setConflicts] = useState([]);
   const [checkIns, setCheckIns] = useState([]);
   const [activeConflict, setActiveConflict] = useState(null);
+  const [viewAttendee, setViewAttendee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
@@ -125,27 +127,33 @@ export const DashboardPage = () => {
         // 3. Build unified check-in ledger strictly scoped to current event
         const combinedMap = new Map();
 
-        // Server check-ins
+        // 3a. Process server check-ins
         serverCheckIns.forEach(ci => {
           const key = ci.entryId || (ci.ticketNumber + '-' + (ci.scannedAt || ''));
-          combinedMap.set(key, ci);
+          combinedMap.set(key, { ...ci });
         });
 
-        // Server checked-in tickets fallback strictly for current event
+        // 3b. Server checked-in tickets fallback strictly for current event
         try {
           const allTicketsRes = await api.getTickets(current.id);
           if (allTicketsRes.tickets) {
             allTicketsRes.tickets.filter(t => t.eventId === current.id && t.status === 'checked_in').forEach(t => {
               const key = t.ticketNumber;
-              if (!combinedMap.has(key)) {
+              const existing = combinedMap.get(key) || Array.from(combinedMap.values()).find(x => x.ticketNumber === t.ticketNumber);
+              if (existing) {
+                if ((!existing.phone || existing.phone === '-') && (t.attendeePhone || t.phone)) existing.phone = t.attendeePhone || t.phone;
+                if ((!existing.email || existing.email === '-') && (t.attendeeEmail || t.email)) existing.email = t.attendeeEmail || t.email;
+                if ((!existing.idNote || existing.idNote === '-') && (t.idNote || t.note)) existing.idNote = t.idNote || t.note;
+                if ((!existing.attendeeName || existing.attendeeName === 'Attendee') && t.attendeeName) existing.attendeeName = t.attendeeName;
+              } else {
                 combinedMap.set(key, {
                   entryId: 'ci-tkt-' + t.ticketNumber,
                   ticketNumber: t.ticketNumber,
-                  attendeeName: t.attendeeName,
-                  phone: t.attendeePhone || '-',
-                  email: t.attendeeEmail || '-',
-                  idNote: t.idNote || '-',
-                  tier: t.tier || 'VIP',
+                  attendeeName: t.attendeeName || 'Attendee',
+                  phone: t.attendeePhone || t.phone || '',
+                  email: t.attendeeEmail || t.email || '',
+                  idNote: t.idNote || t.note || '',
+                  tier: t.tier || 'VIP Access',
                   gateId: t.firstCheckIn?.gateId || 'Gate A',
                   scannedAt: t.firstCheckIn?.scannedAt || t.createdAt,
                   volunteerName: t.firstCheckIn?.volunteerName || 'Gate Volunteer Terminal',
@@ -156,42 +164,54 @@ export const DashboardPage = () => {
           }
         } catch (e) {}
 
-        // Local scans on this device strictly for this event
+        // 3c. Local scans on this device (offline or live) with smart bidirectional merging
         localHistory
-          .filter(h => h.eventId === current.id && (h.status === 'valid' || h.status === 'locally_repeated'))
+          .filter(h => !h.eventId || h.eventId === current.id || String(h.eventId).toLowerCase() === String(current.id).toLowerCase())
+          .filter(h => h.status === 'valid' || h.status === 'locally_repeated')
           .forEach(h => {
             const key = h.entryId || (h.ticketNumber + '-' + (h.scannedAt || ''));
-            if (!combinedMap.has(key)) {
+            const existing = combinedMap.get(key) || Array.from(combinedMap.values()).find(x => x.ticketNumber === h.ticketNumber || (x.entryId && x.entryId === h.entryId));
+            if (existing) {
+              if ((!existing.phone || existing.phone === '-') && (h.phone && h.phone !== '-')) existing.phone = h.phone;
+              if ((!existing.email || existing.email === '-') && (h.email && h.email !== '-')) existing.email = h.email;
+              if ((!existing.idNote || existing.idNote === '-') && (h.idNote && h.idNote !== '-')) existing.idNote = h.idNote;
+              if ((!existing.attendeeName || existing.attendeeName === 'Attendee') && (h.attendeeName && h.attendeeName !== 'Attendee')) existing.attendeeName = h.attendeeName;
+            } else {
               combinedMap.set(key, {
                 entryId: h.entryId,
                 ticketNumber: h.ticketNumber,
-                attendeeName: h.attendeeName,
-                phone: h.phone || '-',
-                email: h.email || '-',
-                idNote: h.idNote || '-',
-                tier: h.tier || 'VIP',
+                attendeeName: h.attendeeName || 'Attendee',
+                phone: h.phone || '',
+                email: h.email || '',
+                idNote: h.idNote || '',
+                tier: h.tier || 'VIP Access',
                 gateId: h.gateId || 'Gate A',
                 scannedAt: h.scannedAt,
-                volunteerName: 'Gate Volunteer Terminal',
+                volunteerName: h.volunteerName || 'Gate Volunteer Terminal',
                 status: h.status
               });
             }
           });
 
-        // Local tickets with status checked_in strictly for this event
+        // 3d. Local tickets with status checked_in strictly for this event
         localTickets
-          .filter(t => t.eventId === current.id && t.status === 'checked_in')
+          .filter(t => !t.eventId || t.eventId === current.id || String(t.eventId).toLowerCase() === String(current.id).toLowerCase())
           .forEach(t => {
-            const key = t.ticketNumber;
-            if (!combinedMap.has(key)) {
-              combinedMap.set(key, {
+            const existing = Array.from(combinedMap.values()).find(x => x.ticketNumber === t.ticketNumber || (t.id && x.ticketId === t.id));
+            if (existing) {
+              if ((!existing.phone || existing.phone === '-') && (t.attendeePhone || t.phone)) existing.phone = t.attendeePhone || t.phone;
+              if ((!existing.email || existing.email === '-') && (t.attendeeEmail || t.email)) existing.email = t.attendeeEmail || t.email;
+              if ((!existing.idNote || existing.idNote === '-') && (t.idNote || t.note)) existing.idNote = t.idNote || t.note;
+              if ((!existing.attendeeName || existing.attendeeName === 'Attendee') && t.attendeeName) existing.attendeeName = t.attendeeName;
+            } else if (t.status === 'checked_in') {
+              combinedMap.set(t.ticketNumber, {
                 entryId: 'ci-' + t.ticketNumber,
                 ticketNumber: t.ticketNumber,
-                attendeeName: t.attendeeName,
-                phone: t.attendeePhone || '-',
-                email: t.attendeeEmail || '-',
-                idNote: t.idNote || '-',
-                tier: t.tier || 'VIP',
+                attendeeName: t.attendeeName || 'Attendee',
+                phone: t.attendeePhone || t.phone || '',
+                email: t.attendeeEmail || t.email || '',
+                idNote: t.idNote || t.note || '',
+                tier: t.tier || 'VIP Access',
                 gateId: t.firstCheckIn?.gateId || 'Gate A',
                 scannedAt: t.firstCheckIn?.scannedAt || t.lastScannedAt || t.createdAt,
                 volunteerName: t.firstCheckIn?.volunteerName || 'Gate Volunteer',
@@ -445,8 +465,11 @@ export const DashboardPage = () => {
     const term = historySearch.toLowerCase();
     const matchesSearch = 
       (ci.attendeeName || '').toLowerCase().includes(term) ||
-      (ci.ticketNumber || '').toLowerCase().includes(term);
-    const matchesGate = gateFilter === 'ALL' || (ci.gateId || '').includes(gateFilter);
+      (ci.ticketNumber || '').toLowerCase().includes(term) ||
+      (ci.phone || '').toLowerCase().includes(term) ||
+      (ci.email || '').toLowerCase().includes(term) ||
+      (ci.idNote || '').toLowerCase().includes(term);
+    const matchesGate = gateFilter === 'ALL' || (ci.gateId || '').toLowerCase().includes(gateFilter.toLowerCase());
     return matchesSearch && matchesGate;
   });
 
@@ -758,19 +781,19 @@ export const DashboardPage = () => {
               type="text"
               value={historySearch}
               onChange={(e) => setHistorySearch(e.target.value)}
-              placeholder="Search attendee name or pass ID..."
+              placeholder="Search name, phone, email, pass ID..."
               className="w-full bg-[#110e1a] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 font-sans"
             />
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <span className="text-xs text-slate-400 font-mono">Gate Filter:</span>
-            <div className="flex gap-1 bg-black/40 p-1 rounded-xl border border-white/10 text-xs font-mono">
-              {['ALL', 'Gate A', 'Gate B', 'Gate C'].map((g) => (
+            <div className="flex gap-1 bg-black/40 p-1 rounded-xl border border-white/10 text-xs font-mono overflow-x-auto max-w-full">
+              {['ALL', ...(selectedEvent?.gates && selectedEvent.gates.length > 0 ? selectedEvent.gates.map(g => g.split(' - ')[0]) : ['Gate A', 'Gate B', 'Gate C'])].map((g) => (
                 <button
                   key={g}
                   onClick={() => setGateFilter(g)}
-                  className={`px-3 py-1 rounded-lg transition text-xs ${
+                  className={`px-3 py-1 rounded-lg transition text-xs whitespace-nowrap ${
                     gateFilter === g
                       ? 'bg-amber-600 text-white font-bold shadow-md shadow-amber-950'
                       : 'text-slate-400 hover:text-white'
@@ -829,29 +852,42 @@ export const DashboardPage = () => {
               <tbody className="divide-y divide-white/5 bg-[#171322]/50">
                 {filteredCheckIns.slice().reverse().map((ci, index) => {
                   const initial = (ci.attendeeName || 'A').charAt(0).toUpperCase();
+                  const hasPhone = ci.phone && ci.phone !== '-' && ci.phone.trim() !== '';
+                  const hasEmail = ci.email && ci.email !== '-' && ci.email.trim() !== '';
+                  const hasNote = ci.idNote && ci.idNote !== '-' && ci.idNote.trim() !== '';
+
                   return (
-                    <tr key={ci.entryId || (ci.ticketNumber + '-' + index)} className="hover:bg-white/[0.04] transition-colors">
-                      <td className="py-3.5 px-4">
+                    <tr key={ci.entryId || (ci.ticketNumber + '-' + index)} className="hover:bg-white/[0.04] transition-colors group">
+                      <td className="py-3.5 px-4 cursor-pointer" onClick={() => setViewAttendee(ci)}>
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-600 to-rose-600 text-white flex items-center justify-center font-bold text-xs shadow-sm shrink-0">
+                          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-600 to-rose-600 text-white flex items-center justify-center font-bold text-xs shadow-md shrink-0">
                             {initial}
                           </div>
                           <div>
-                            <div className="font-bold text-white text-sm">{ci.attendeeName || 'Attendee'}</div>
+                            <div className="font-bold text-white text-sm flex items-center gap-2">
+                              <span>{ci.attendeeName || 'Attendee'}</span>
+                              <span className="text-[10px] text-amber-400/90 group-hover:text-amber-300 font-mono inline-flex items-center gap-0.5 bg-amber-950/40 px-1.5 py-0.2 rounded border border-amber-500/20">
+                                <Eye className="w-3 h-3" /> View Card
+                              </span>
+                            </div>
                             <div className="flex items-center gap-2.5 mt-0.5 text-[11px] text-slate-400 font-mono flex-wrap">
-                              {ci.phone && ci.phone !== '-' && (
+                              {hasPhone ? (
                                 <span className="flex items-center gap-1 text-amber-300 font-semibold">
                                   <Phone className="w-3 h-3 text-amber-400" /> {ci.phone}
                                 </span>
+                              ) : (
+                                <span className="text-slate-500 text-[10px]">No phone</span>
                               )}
-                              {ci.email && ci.email !== '-' && (
+                              {hasEmail ? (
                                 <span className="flex items-center gap-1 text-purple-300">
                                   <Mail className="w-3 h-3 text-purple-400" /> {ci.email}
                                 </span>
+                              ) : (
+                                <span className="text-slate-500 text-[10px]">No email</span>
                               )}
                             </div>
-                            {ci.idNote && ci.idNote !== '-' && (
-                              <span className="inline-block mt-1 text-[10px] text-amber-300 font-sans bg-amber-950/40 px-2 py-0.5 rounded-md border border-amber-500/20">
+                            {hasNote && (
+                              <span className="inline-block mt-1 text-[10px] text-amber-300 font-sans bg-amber-950/50 px-2 py-0.5 rounded-md border border-amber-500/30">
                                 {ci.idNote}
                               </span>
                             )}
@@ -892,13 +928,22 @@ export const DashboardPage = () => {
                         {ci.volunteerName || 'Gate Volunteer Terminal'}
                       </td>
                       <td className="py-3.5 px-4 text-right">
-                        <button
-                          onClick={() => handleDeleteCheckIn(ci.entryId, ci.ticketNumber)}
-                          className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 border border-rose-500/20 hover:border-rose-500/40 transition"
-                          title="Delete this check-in entry"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setViewAttendee(ci)}
+                            className="p-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 border border-amber-500/20 hover:border-amber-500/40 transition"
+                            title="View attendee details card"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCheckIn(ci.entryId, ci.ticketNumber)}
+                            className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 border border-rose-500/20 hover:border-rose-500/40 transition"
+                            title="Delete this check-in entry"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -908,6 +953,97 @@ export const DashboardPage = () => {
           </div>
         )}
       </div>
+
+      {/* Attendee Details Modal */}
+      {viewAttendee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="bg-[#110e1a] border border-amber-500/30 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl relative space-y-5">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-white text-base">Attendee Entry Record</h3>
+                  <p className="text-xs text-slate-400">Verified Gate Check-in Details</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewAttendee(null)}
+                className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
+                <div>
+                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Attendee Full Name</span>
+                  <div className="text-lg font-bold text-white">{viewAttendee.attendeeName || 'Attendee'}</div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1 border-t border-white/5 text-xs font-mono">
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase block">Phone / Mobile</span>
+                    <span className="text-amber-300 font-semibold">{viewAttendee.phone && viewAttendee.phone !== '-' ? viewAttendee.phone : 'Not provided'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase block">Email Address</span>
+                    <span className="text-purple-300 truncate block">{viewAttendee.email && viewAttendee.email !== '-' ? viewAttendee.email : 'Not provided'}</span>
+                  </div>
+                </div>
+
+                {viewAttendee.idNote && viewAttendee.idNote !== '-' && (
+                  <div className="pt-1 border-t border-white/5 text-xs font-mono">
+                    <span className="text-[10px] text-slate-400 uppercase block">ID Proof / Remark</span>
+                    <span className="text-amber-400 font-medium">{viewAttendee.idNote}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                  <span className="text-[10px] text-slate-400 block uppercase">Pass Number</span>
+                  <span className="text-amber-400 font-bold">{viewAttendee.ticketNumber}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                  <span className="text-[10px] text-slate-400 block uppercase">Pass Tier</span>
+                  <span className="text-white font-bold">{viewAttendee.tier || 'VIP Access'}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                  <span className="text-[10px] text-slate-400 block uppercase">Gate Entrance</span>
+                  <span className="text-amber-300 font-bold">{viewAttendee.gateId || 'Gate A'}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                  <span className="text-[10px] text-slate-400 block uppercase">Scanned By</span>
+                  <span className="text-slate-300 truncate block">{viewAttendee.volunteerName || 'Gate Volunteer Terminal'}</span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/30 flex items-center justify-between text-xs font-mono">
+                <div className="flex items-center gap-2 text-amber-300 font-bold">
+                  <CheckCircle2 className="w-4 h-4 text-amber-400" />
+                  <span>{viewAttendee.status === 'valid' ? 'ENTRY VERIFIED & GRANTED' : 'REPEATED ENTRY DETECTED'}</span>
+                </div>
+                <span className="text-slate-400 text-[10px]">
+                  {viewAttendee.scannedAt ? new Date(viewAttendee.scannedAt).toLocaleTimeString() : ''}
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setViewAttendee(null)}
+                className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold transition"
+              >
+                Close Record
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Resolution Modal */}
       {activeConflict && (

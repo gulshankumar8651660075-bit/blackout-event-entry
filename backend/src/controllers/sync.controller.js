@@ -68,13 +68,19 @@ const getCheckIns = async (req, res) => {
         (ticket.ticketNumber && ci.ticketNumber && ticket.ticketNumber.toUpperCase() === ci.ticketNumber.toUpperCase()) ||
         (ticket.id && ci.ticketId && ticket.id === ci.ticketId)
       );
+      const attendeeName = (ci.attendeeName && ci.attendeeName !== 'Attendee') ? ci.attendeeName : (t?.attendeeName || ci.attendeeName || 'Attendee');
+      const phone = (ci.phone && ci.phone !== '-' && ci.phone.trim() !== '') ? ci.phone : (t?.attendeePhone || t?.phone || '');
+      const email = (ci.email && ci.email !== '-' && ci.email.trim() !== '') ? ci.email : (t?.attendeeEmail || t?.email || '');
+      const idNote = (ci.idNote && ci.idNote !== '-' && ci.idNote.trim() !== '') ? ci.idNote : (t?.idNote || t?.note || '');
+      const tier = ci.tier || t?.tier || 'VIP Access';
+
       return {
         ...ci,
-        attendeeName: ci.attendeeName || t?.attendeeName || 'Attendee',
-        phone: ci.phone || t?.attendeePhone || '-',
-        email: ci.email || t?.attendeeEmail || '-',
-        idNote: ci.idNote || t?.idNote || '-',
-        tier: ci.tier || t?.tier || 'VIP'
+        attendeeName,
+        phone,
+        email,
+        idNote,
+        tier
       };
     });
 

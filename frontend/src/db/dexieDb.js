@@ -252,10 +252,10 @@ export const offlineDbService = {
       scanResultStatus = 'valid';
     }
 
-    const finalName = attendeeName || (ticket ? ticket.attendeeName : 'Attendee');
-    const finalPhone = phone || (ticket ? ticket.attendeePhone : '');
-    const finalEmail = email || (ticket ? ticket.attendeeEmail : '');
-    const finalNote = idNote || (ticket ? ticket.idNote : '');
+    const finalName = (attendeeName && attendeeName.trim()) || (ticket ? (ticket.attendeeName || ticket.name) : 'Attendee');
+    const finalPhone = (phone && phone.trim()) || (ticket ? (ticket.attendeePhone || ticket.phone) : '');
+    const finalEmail = (email && email.trim()) || (ticket ? (ticket.attendeeEmail || ticket.email) : '');
+    const finalNote = (idNote && idNote.trim()) || (ticket ? (ticket.idNote || ticket.note) : '');
 
     // Queue valid and locally repeated tickets into pendingScans
     if (ticket) {

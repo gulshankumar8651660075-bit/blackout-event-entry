@@ -267,25 +267,29 @@ export const GateScannerPage = () => {
       const finalNote = attendeeForm.idNote.trim();
       const finalGate = attendeeForm.gate || activeGate || 'Gate A';
 
-      // Always assign a distinct serial if this is a master event QR or a repeat scan
-      let activeTicket = { ...ticket };
+      // Always ensure activeTicket has latest attendee details filled by volunteer
+      let activeTicket = {
+        ...ticket,
+        attendeeName: finalName,
+        attendeePhone: finalPhone,
+        attendeeEmail: finalEmail,
+        idNote: finalNote
+      };
+
       if (isEventEntry || isRepeat || ticket.isEventEntry) {
         const uniqueSerial = `VOL-${Math.floor(1000 + Math.random() * 9000)}`;
         activeTicket = {
+          ...activeTicket,
           id: `tkt-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           ticketNumber: uniqueSerial,
-          attendeeName: finalName,
-          attendeePhone: finalPhone,
-          attendeeEmail: finalEmail,
-          idNote: finalNote,
           tier: ticket.tier || 'VIP Access',
           eventId: ticket.eventId || selectedEventId || (cachedEvent ? cachedEvent.id : undefined),
           status: 'issued',
           isEventEntry: true,
           qrPayload: pendingAttendee.rawCode
         };
-        await offlineDbService.saveSingleTicket(activeTicket);
       }
+      await offlineDbService.saveSingleTicket(activeTicket);
 
       // 1. Record scan in local Dexie IndexedDB (<10ms)
       const result = await offlineDbService.recordScan({
@@ -310,7 +314,7 @@ export const GateScannerPage = () => {
           phone: finalPhone,
           email: finalEmail,
           idNote: finalNote,
-          tier: activeTicket.tier || 'VIP',
+          tier: activeTicket.tier || 'VIP Access',
           eventId: activeTicket.eventId || selectedEventId || (cachedEvent ? cachedEvent.id : undefined),
           gateId: finalGate,
           volunteerName: user ? user.name : 'Gate Volunteer Terminal',

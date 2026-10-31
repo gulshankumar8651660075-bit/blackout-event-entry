@@ -23,7 +23,7 @@ const getTickets = async (req, res) => {
 
 const createTicket = async (req, res) => {
   try {
-    let { eventId, attendeeName, attendeeEmail, tier, ticketNumber } = req.body;
+    let { eventId, attendeeName, attendeePhone, phone, attendeeEmail, email, idNote, note, tier, ticketNumber } = req.body;
 
     // Auto-resolve eventId if not provided (strictly scoped to THIS organizer)
     if (!eventId) {
@@ -46,7 +46,9 @@ const createTicket = async (req, res) => {
     const ticket = await DataStore.createTicket({
       eventId,
       attendeeName: attendeeName.trim(),
-      attendeeEmail: (attendeeEmail || '').trim(),
+      attendeePhone: (attendeePhone || phone || '').trim(),
+      attendeeEmail: (attendeeEmail || email || '').trim(),
+      idNote: (idNote || note || '').trim(),
       tier: tier || 'General',
       ticketNumber
     });
